@@ -4,7 +4,7 @@
     {
       "name": "AutoApply Dev Server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev", "--prefix", "my-vercel-project"],
       "port": 3000
     }
   ]
