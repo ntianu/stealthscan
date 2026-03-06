@@ -3,6 +3,8 @@ import { Job, Seniority, UserProfile } from "@prisma/client";
 export interface FitResult {
   score: number; // 0.0–1.0
   explanation: string;
+  matchedSkills: string[];
+  missedSkills: string[];
 }
 
 const SENIORITY_ORDER: Seniority[] = [
@@ -89,7 +91,7 @@ function skillsScore(
 }
 
 /**
- * Score a job against a user profile. Returns score (0–1) and explanation text.
+ * Score a job against a user profile. Returns score (0–1), explanation, and matched/missed skills.
  */
 export function scoreJob(
   job: Job,
@@ -111,5 +113,10 @@ export function scoreJob(
 
   const explanation = parts.length > 0 ? parts.join(". ") : "General match";
 
-  return { score: Math.min(1, Math.max(0, score)), explanation };
+  return {
+    score: Math.min(1, Math.max(0, score)),
+    explanation,
+    matchedSkills: skills.matched,
+    missedSkills: skills.missed,
+  };
 }
