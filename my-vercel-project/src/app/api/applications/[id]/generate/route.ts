@@ -18,13 +18,14 @@ import { scoreJob } from "@/lib/matching/scorer";
  */
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await requireUser();
+  const { id } = await params;
 
   // Load the application with full relations
   const application = await db.application.findUnique({
-    where: { id: params.id, userId: user.id },
+    where: { id, userId: user.id },
     include: { job: true },
   });
 
@@ -38,6 +39,7 @@ export async function POST(
       { status: 400 }
     );
   }
+
 
   // Load user profile + resumes + bullets
   const [userProfile, resumes, bullets] = await Promise.all([
@@ -140,7 +142,7 @@ export async function POST(
   // Persist everything back to the application
   // JSON.parse(JSON.stringify(...)) yields a plain object compatible with Prisma's Json type
   const updated = await db.application.update({
-    where: { id: params.id },
+    where: { id },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: {
       coverLetter: coverLetterText,
