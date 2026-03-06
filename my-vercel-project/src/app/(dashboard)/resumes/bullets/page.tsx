@@ -13,9 +13,9 @@ export default async function BulletsPage() {
 
   return (
     <>
-      <Topbar title="Bullet Library" />
+      <Topbar title="Bullet Library" description="Tagged achievements used in AI-generated cover letters" />
       <div className="p-6 max-w-3xl space-y-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Achievement bullets are tagged and pulled into your cover letters automatically.
           Rate proof strength 1–5 (5 = quantified outcome with specific numbers).
         </p>

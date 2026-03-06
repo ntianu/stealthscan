@@ -20,7 +20,7 @@ export function FitScoreDistribution({ data }: FitScoreDistributionProps) {
 
   if (total === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-gray-400">
+      <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
         No fit scores yet
       </div>
     );

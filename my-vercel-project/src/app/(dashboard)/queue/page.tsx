@@ -18,55 +18,59 @@ export default async function QueuePage() {
 
   return (
     <>
-      <Topbar title="Review Queue" />
+      <Topbar title="Review Queue" description="Applications prepared for your review" />
       <div className="p-6">
         {applications.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-gray-500">
-              <p className="text-lg font-medium">Your queue is empty.</p>
-              <p className="mt-1 text-sm">
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">Your queue is empty.</p>
+              <p className="mt-1 text-xs">
                 The daily cron will prepare applications each morning and put them here for your review.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {applications.map((app) => (
+          <div className="space-y-2">
+            {applications.map((app) => {
+              const pct = Math.round(app.fitScore * 100);
+              const scoreColor = pct >= 70 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400";
+              return (
               <Link key={app.id} href={`/queue/${app.id}`}>
-                <Card className="cursor-pointer hover:shadow-sm transition-shadow">
-                  <CardHeader className="pb-2">
+                <Card className="cursor-pointer hover:border-primary/30 transition-colors">
+                  <CardHeader className="pb-1.5 pt-3 px-4">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-base">{app.job.title}</CardTitle>
-                        <p className="text-sm text-gray-500">{app.job.company}</p>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm font-semibold truncate">{app.job.title}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">{app.job.company}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
                         <div className="text-right">
-                          <div className="text-sm font-semibold text-blue-600">
-                            {Math.round(app.fitScore * 100)}% fit
+                          <div className={`text-sm font-bold tabular-nums ${scoreColor}`}>
+                            {pct}%
                           </div>
-                          <div className="text-xs text-gray-400">
+                          <div className="text-[10px] text-muted-foreground">
                             {formatDistanceToNow(app.createdAt, { addSuffix: true })}
                           </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Badge variant="outline">{app.job.source}</Badge>
+                  <CardContent className="px-4 pb-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] h-4 px-1.5">{app.job.source}</Badge>
                       {app.resume && (
-                        <span>Resume: {app.resume.name}</span>
+                        <span className="truncate">Resume: {app.resume.name}</span>
                       )}
                       {app.coverLetter && (
-                        <Badge variant="secondary" className="text-xs">Cover letter ready</Badge>
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5">Cover letter ready</Badge>
                       )}
                     </div>
                   </CardContent>
                 </Card>
               </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

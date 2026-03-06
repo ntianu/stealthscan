@@ -27,11 +27,11 @@ export default async function ApplicationReviewPage({ params }: Props) {
 
   return (
     <>
-      <Topbar title="Review Application" />
+      <Topbar title="Review Application" description="Inspect and approve this application" />
       <div className="p-6 max-w-3xl">
         <Link href="/queue">
-          <Button variant="ghost" size="sm" className="mb-4 gap-1 text-gray-500">
-            <ChevronLeft className="h-4 w-4" /> Back to Queue
+          <Button variant="ghost" size="sm" className="mb-4 gap-1 text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="h-3.5 w-3.5" /> Back to Queue
           </Button>
         </Link>
 

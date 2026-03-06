@@ -68,34 +68,34 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button onClick={copy} className="text-gray-400 hover:text-gray-600 transition-colors">
-      {copied ? <Check className="h-4 w-4 text-green-500" /> : <ClipboardCopy className="h-4 w-4" />}
+    <button onClick={copy} className="text-muted-foreground hover:text-foreground transition-colors">
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
     </button>
   );
 }
 
 function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Apply Kit Ready</h2>
+            <h2 className="text-base font-semibold text-foreground">Apply Kit Ready</h2>
             <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
           </div>
 
-          <p className="text-sm text-gray-600">{kit.instructions}</p>
+          <p className="text-sm text-muted-foreground">{kit.instructions}</p>
 
           <div className="flex gap-3">
             <a href={kit.applyUrl} target="_blank" rel="noopener noreferrer">
-              <Button className="gap-2">
-                <ExternalLink className="h-4 w-4" /> Open Application
+              <Button size="sm" className="gap-1.5 text-xs">
+                <ExternalLink className="h-3.5 w-3.5" /> Open Application
               </Button>
             </a>
             {kit.resumeUrl && (
               <a href={kit.resumeUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="gap-2">
-                  <FileText className="h-4 w-4" /> Download Resume
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  <FileText className="h-3.5 w-3.5" /> Download Resume
                 </Button>
               </a>
             )}
@@ -103,11 +103,11 @@ function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void })
 
           {kit.coverLetter && (
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-sm font-medium">Cover Letter</p>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cover Letter</p>
                 <CopyButton text={kit.coverLetter} />
               </div>
-              <pre className="text-xs text-gray-700 bg-gray-50 rounded-lg p-4 whitespace-pre-wrap border font-sans leading-relaxed max-h-64 overflow-y-auto">
+              <pre className="text-xs text-foreground/80 bg-muted/30 rounded-lg p-4 whitespace-pre-wrap border border-border font-sans leading-relaxed max-h-64 overflow-y-auto">
                 {kit.coverLetter}
               </pre>
             </div>
@@ -115,15 +115,15 @@ function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void })
 
           {Object.keys(kit.answers).length > 0 && (
             <div>
-              <p className="text-sm font-medium mb-2">Pre-filled Answers</p>
-              <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Pre-filled Answers</p>
+              <div className="space-y-2">
                 {Object.entries(kit.answers).map(([q, a]) => (
-                  <div key={q} className="bg-gray-50 rounded-lg p-3 border">
+                  <div key={q} className="bg-muted/30 rounded-lg p-3 border border-border">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-medium text-gray-700">{q}</p>
+                      <p className="text-xs font-medium text-muted-foreground">{q}</p>
                       <CopyButton text={a} />
                     </div>
-                    <p className="mt-1 text-sm text-gray-800">{a}</p>
+                    <p className="mt-1 text-sm text-foreground">{a}</p>
                   </div>
                 ))}
               </div>
@@ -161,7 +161,7 @@ export function ReviewPanel({
 
   const isActionable = status === "PREPARED";
   const fitPct = Math.round(fitScore * 100);
-  const fitColor = fitPct >= 70 ? "text-green-600" : fitPct >= 50 ? "text-amber-600" : "text-red-500";
+  const fitColor = fitPct >= 70 ? "text-emerald-400" : fitPct >= 50 ? "text-amber-400" : "text-red-400";
 
   const handleGenerate = async () => {
     if (!hasProfile) {
@@ -234,37 +234,37 @@ export function ReviewPanel({
     <>
       {kit && <ApplyKitModal kit={kit} onClose={() => { setKit(null); router.push("/queue"); router.refresh(); }} />}
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Job header */}
         <Card>
-          <CardContent className="pt-5">
+          <CardContent className="pt-4 pb-4 px-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">{job.title}</h2>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                  <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{job.company}</span>
-                  {job.location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{job.location}</span>}
-                  {job.remoteType && <Badge variant="secondary">{job.remoteType}</Badge>}
-                  <Badge variant="outline">{job.source}</Badge>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-semibold text-foreground leading-snug">{job.title}</h2>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{job.company}</span>
+                  {job.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{job.location}</span>}
+                  {job.remoteType && <Badge variant={job.remoteType === "REMOTE" ? "default" : "secondary"} className="text-[10px] h-4 px-1.5">{job.remoteType}</Badge>}
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5">{job.source}</Badge>
                 </div>
                 {(job.salaryMin || job.salaryMax) && (
-                  <p className="mt-1 text-sm text-gray-500">
-                    Salary: {job.salaryMin ? `$${job.salaryMin.toLocaleString()}` : "?"} – {job.salaryMax ? `$${job.salaryMax.toLocaleString()}` : "?"}
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {job.salaryMin ? `$${job.salaryMin.toLocaleString()}` : "?"} – {job.salaryMax ? `$${job.salaryMax.toLocaleString()}` : "?"} / yr
                   </p>
                 )}
               </div>
               <div className="text-right shrink-0">
-                <div className={`text-3xl font-bold ${fitColor}`}>{fitPct}%</div>
-                <div className="text-xs text-gray-400">fit score</div>
+                <div className={`text-2xl font-bold tabular-nums ${fitColor}`}>{fitPct}%</div>
+                <div className="text-[10px] text-muted-foreground">fit</div>
                 <a href={job.applyUrl} target="_blank" rel="noopener noreferrer"
-                  className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                  View posting <ExternalLink className="h-3 w-3" />
+                  className="mt-1 flex items-center gap-1 text-[10px] text-primary hover:underline justify-end">
+                  View <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
 
             {fitExplanation && (
-              <div className="mt-3 rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
+              <div className="mt-3 rounded-lg bg-primary/[0.06] border border-primary/20 p-3 text-xs text-muted-foreground leading-relaxed">
                 {fitExplanation}
               </div>
             )}
@@ -272,7 +272,7 @@ export function ReviewPanel({
             {job.requirements.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1">
                 {job.requirements.slice(0, 8).map(r => (
-                  <span key={r} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">{r}</span>
+                  <span key={r} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{r}</span>
                 ))}
               </div>
             )}
@@ -282,22 +282,22 @@ export function ReviewPanel({
         {/* Verifier report */}
         {verifierReport && (
           <Card className={verifierReport.passed
-            ? "border-green-200 bg-green-50/30"
-            : "border-amber-200 bg-amber-50/30"}>
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-2 mb-2">
+            ? "border-emerald-500/20 bg-emerald-500/[0.06]"
+            : "border-amber-500/20 bg-amber-500/[0.06]"}>
+            <CardContent className="pt-3 pb-3 px-4">
+              <div className="flex items-center gap-2 mb-1.5">
                 {verifierReport.passed
-                  ? <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  : <AlertCircle className="h-4 w-4 text-amber-600" />}
-                <span className="text-sm font-medium">
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  : <AlertCircle className="h-3.5 w-3.5 text-amber-400" />}
+                <span className="text-xs font-medium text-foreground">
                   {verifierReport.passed ? "Verifier passed — no hallucinations detected" : "Verifier flagged potential issues"}
                 </span>
               </div>
               {verifierReport.issues?.map((issue, i) => (
-                <p key={i} className="text-xs text-amber-700">⚠ {issue}</p>
+                <p key={i} className="text-[10px] text-amber-400">⚠ {issue}</p>
               ))}
               {verifierReport.warnings?.map((w, i) => (
-                <p key={i} className="text-xs text-amber-600">• {w}</p>
+                <p key={i} className="text-[10px] text-amber-400/80">• {w}</p>
               ))}
             </CardContent>
           </Card>
@@ -306,14 +306,14 @@ export function ReviewPanel({
         {/* Resume */}
         {resume && (
           <Card>
-            <CardHeader><CardTitle className="text-sm">Selected Resume</CardTitle></CardHeader>
-            <CardContent>
+            <CardHeader className="pb-1.5 pt-3 px-4"><CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Resume</CardTitle></CardHeader>
+            <CardContent className="px-4 pb-3">
               <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-blue-500 shrink-0" />
+                <FileText className="h-7 w-7 text-primary shrink-0" />
                 <div>
-                  <p className="font-medium text-sm">{resume.name}</p>
+                  <p className="font-medium text-sm text-foreground">{resume.name}</p>
                   <a href={resume.fileUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                    className="text-xs text-primary hover:underline flex items-center gap-1">
                     Preview <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
@@ -324,15 +324,15 @@ export function ReviewPanel({
 
         {/* Cover letter */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-1.5 pt-3 px-4">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-sm">Cover Letter</CardTitle>
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cover Letter</CardTitle>
               <div className="flex items-center gap-2">
                 {isActionable && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50"
+                    className="h-7 text-xs gap-1 text-violet-400 border-violet-500/30 hover:bg-violet-500/10"
                     onClick={handleGenerate}
                     disabled={generating || approving || rejecting}
                   >
@@ -346,7 +346,7 @@ export function ReviewPanel({
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             {isActionable ? (
               <Textarea
                 value={coverLetter}
@@ -356,7 +356,7 @@ export function ReviewPanel({
                 className="text-sm leading-relaxed font-sans"
               />
             ) : (
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+              <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">
                 {coverLetter || "No cover letter."}
               </pre>
             )}
@@ -366,15 +366,15 @@ export function ReviewPanel({
         {/* Custom answers */}
         {customAnswers && Object.keys(customAnswers).length > 0 && (
           <Card>
-            <CardHeader><CardTitle className="text-sm">Application Questions</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardHeader className="pb-1.5 pt-3 px-4"><CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Application Questions</CardTitle></CardHeader>
+            <CardContent className="space-y-2 px-4 pb-3">
               {Object.entries(customAnswers).map(([q, a]) => (
-                <div key={q} className="rounded-lg bg-gray-50 p-3 border">
+                <div key={q} className="rounded-lg bg-muted/30 p-3 border border-border">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-medium text-gray-700 mb-1">{q}</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">{q}</p>
                     <CopyButton text={a} />
                   </div>
-                  <p className="text-sm text-gray-800">{a}</p>
+                  <p className="text-sm text-foreground">{a}</p>
                 </div>
               ))}
             </CardContent>
@@ -385,13 +385,12 @@ export function ReviewPanel({
         {isActionable && (
           <div className="flex items-center justify-between pt-2 pb-6">
             <Button variant="outline" onClick={handleReject} disabled={rejecting || approving}
-              className="gap-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
-              {rejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsDown className="h-4 w-4" />}
+              className="gap-1.5 text-xs text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-400">
+              {rejecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsDown className="h-3.5 w-3.5" />}
               Skip
             </Button>
-            <Button onClick={handleApprove} disabled={approving || rejecting}
-              className="gap-2 bg-green-600 hover:bg-green-700">
-              {approving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
+            <Button onClick={handleApprove} disabled={approving || rejecting} className="gap-1.5 text-xs">
+              {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsUp className="h-3.5 w-3.5" />}
               Approve & Submit
             </Button>
           </div>
@@ -399,7 +398,7 @@ export function ReviewPanel({
 
         {!isActionable && (
           <div className="flex justify-center py-4">
-            <Badge variant={status === "SUBMITTED" ? "default" : "secondary"} className="text-sm px-4 py-1">
+            <Badge variant={status === "SUBMITTED" ? "default" : "secondary"} className="text-xs px-4 py-1">
               {status === "SUBMITTED" && <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
               {status === "REJECTED" && <XCircle className="h-3.5 w-3.5 mr-1" />}
               {status}

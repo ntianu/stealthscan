@@ -1,16 +1,15 @@
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Topbar } from "@/components/layout/topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 const statusColors: Record<string, string> = {
-  SUBMITTED: "bg-green-100 text-green-800",
-  REJECTED: "bg-gray-100 text-gray-600",
-  RESPONDED: "bg-purple-100 text-purple-800",
-  APPROVED: "bg-blue-100 text-blue-800",
+  SUBMITTED: "bg-emerald-500/15 text-emerald-400",
+  REJECTED:  "bg-muted text-muted-foreground",
+  RESPONDED: "bg-violet-500/15 text-violet-400",
+  APPROVED:  "bg-blue-500/15 text-blue-400",
 };
 
 export default async function HistoryPage() {
@@ -28,11 +27,11 @@ export default async function HistoryPage() {
 
   return (
     <>
-      <Topbar title="Application History" />
+      <Topbar title="Application History" description="Submitted and completed applications" />
       <div className="p-6">
         {applications.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-gray-500">
+            <CardContent className="py-12 text-center text-muted-foreground text-xs">
               No submitted applications yet.
             </CardContent>
           </Card>
@@ -40,23 +39,23 @@ export default async function HistoryPage() {
           <div className="space-y-2">
             {applications.map((app) => (
               <Link key={app.id} href={`/history/${app.id}`}>
-                <Card className="cursor-pointer hover:shadow-sm transition-shadow">
-                  <CardContent className="py-4">
+                <Card className="cursor-pointer hover:border-primary/30 transition-colors">
+                  <CardContent className="py-3 px-4">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{app.job.title}</p>
-                        <p className="text-sm text-gray-500">{app.job.company}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{app.job.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{app.job.company}</p>
                       </div>
-                      <div className="flex items-center gap-3 text-right">
-                        <div>
+                      <div className="flex items-center gap-3 shrink-0 ml-3">
+                        <div className="text-right">
                           <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                              statusColors[app.status] ?? "bg-gray-100 text-gray-600"
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              statusColors[app.status] ?? "bg-muted text-muted-foreground"
                             }`}
                           >
                             {app.status}
                           </span>
-                          <p className="mt-1 text-xs text-gray-400">
+                          <p className="mt-1 text-[10px] text-muted-foreground">
                             {formatDistanceToNow(app.updatedAt, { addSuffix: true })}
                           </p>
                         </div>

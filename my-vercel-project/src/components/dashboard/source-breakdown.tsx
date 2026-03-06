@@ -28,7 +28,7 @@ function renderLabel({ source, percent }: LabelProps) {
 export function SourceBreakdown({ data }: SourceBreakdownProps) {
   if (data.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-gray-400">
+      <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
         No jobs discovered yet
       </div>
     );

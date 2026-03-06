@@ -55,18 +55,18 @@ function BulletForm({
   };
 
   return (
-    <Card className="border-blue-200 bg-blue-50/30">
+    <Card className="border-primary/20 bg-primary/[0.06]">
       <CardContent className="pt-4 space-y-3">
         <div>
-          <Label>Achievement bullet *</Label>
+          <Label className="text-xs font-medium">Achievement bullet *</Label>
           <Textarea
             value={content}
             onChange={e => setContent(e.target.value)}
             placeholder='e.g. "Led migration of 4 services to Kubernetes, cutting deployment time by 40%"'
             rows={3}
-            className="mt-1 bg-white"
+            className="mt-1"
           />
-          <p className="mt-1 text-xs text-gray-400">Be specific. Numbers = higher proof strength.</p>
+          <p className="mt-1 text-[10px] text-muted-foreground">Be specific. Numbers = higher proof strength.</p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -90,17 +90,17 @@ function BulletForm({
             <div className="mt-1 flex flex-wrap gap-1">
               {SENIORITY_LEVELS.map(s => (
                 <button key={s} type="button" onClick={() => setSeniority(s)}
-                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${seniority === s ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 bg-white text-gray-500"}`}>
+                  className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${seniority === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-transparent text-muted-foreground hover:border-primary/60 hover:text-foreground"}`}>
                   {s}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <Label className="text-xs">Proof strength: <span className="font-semibold text-amber-600">{STRENGTH_LABELS[proofStrength]} ({proofStrength}/5)</span></Label>
+            <Label className="text-xs">Proof strength: <span className="font-semibold text-amber-400">{STRENGTH_LABELS[proofStrength]} ({proofStrength}/5)</span></Label>
             <input type="range" min={1} max={5} value={proofStrength}
               onChange={e => setProofStrength(parseInt(e.target.value))}
-              className="mt-1 w-40 accent-blue-600" />
+              className="mt-1 w-40 accent-primary" />
           </div>
         </div>
 
@@ -167,7 +167,7 @@ export function BulletEditor({ initialBullets }: BulletEditorProps) {
       )}
 
       {bullets.length === 0 && !adding && (
-        <div className="rounded-lg border border-dashed border-gray-300 py-10 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           No bullets yet. Click above to add your first achievement.
         </div>
       )}
@@ -185,28 +185,28 @@ export function BulletEditor({ initialBullets }: BulletEditorProps) {
               <CardContent className="py-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 leading-relaxed">{bullet.content}</p>
+                    <p className="text-sm text-foreground leading-relaxed">{bullet.content}</p>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {bullet.competencyTags.map(t => (
-                        <span key={t} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">{t}</span>
+                        <span key={t} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">{t}</span>
                       ))}
                       {bullet.roleTags.map(t => (
-                        <span key={t} className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-700">{t}</span>
+                        <span key={t} className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-400">{t}</span>
                       ))}
                       {bullet.industryTags.map(t => (
-                        <span key={t} className="rounded-full bg-green-50 px-2 py-0.5 text-xs text-green-700">{t}</span>
+                        <span key={t} className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">{t}</span>
                       ))}
                     </div>
                   </div>
                   <div className="shrink-0 flex flex-col items-end gap-2">
-                    <span className="text-xs font-medium text-amber-600">
+                    <span className="text-[10px] font-medium text-amber-400">
                       {STRENGTH_LABELS[bullet.proofStrength]} · {bullet.seniority}
                     </span>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(bullet.id)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => handleDelete(bullet.id)}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleDelete(bullet.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

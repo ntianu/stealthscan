@@ -65,10 +65,10 @@ export function ResumeUploader() {
 
   if (uploaded) {
     return (
-      <div className="flex flex-col items-center gap-3 py-12 text-center text-green-600">
+      <div className="flex flex-col items-center gap-3 py-12 text-center text-emerald-400">
         <CheckCircle2 className="h-12 w-12" />
-        <p className="font-semibold text-lg">Resume uploaded!</p>
-        <p className="text-sm text-gray-500">Redirecting to your library…</p>
+        <p className="font-semibold text-base text-foreground">Resume uploaded!</p>
+        <p className="text-sm text-muted-foreground">Redirecting to your library…</p>
       </div>
     );
   }
@@ -79,18 +79,18 @@ export function ResumeUploader() {
       <Card>
         <CardHeader><CardTitle className="text-base">Select PDF</CardTitle></CardHeader>
         <CardContent>
-          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-blue-400 hover:bg-blue-50">
+          <label className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.04]">
             {file ? (
               <>
-                <FileText className="h-10 w-10 text-blue-500" />
-                <span className="font-medium text-gray-800">{file.name}</span>
-                <span className="text-xs text-gray-400">{(file.size / 1024).toFixed(0)} KB · Click to change</span>
+                <FileText className="h-10 w-10 text-primary" />
+                <span className="font-medium text-foreground">{file.name}</span>
+                <span className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB · Click to change</span>
               </>
             ) : (
               <>
-                <Upload className="h-10 w-10 text-gray-400" />
-                <span className="font-medium text-gray-600">Click to upload PDF</span>
-                <span className="text-xs text-gray-400">Max 4 MB</span>
+                <Upload className="h-10 w-10 text-muted-foreground/50" />
+                <span className="font-medium text-muted-foreground">Click to upload PDF</span>
+                <span className="text-xs text-muted-foreground/70">Max 4 MB</span>
               </>
             )}
             <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
@@ -112,7 +112,7 @@ export function ResumeUploader() {
             <div className="mt-2 flex flex-wrap gap-2">
               {SENIORITY_LEVELS.map(s => (
                 <button key={s} type="button" onClick={() => setSeniority(s)}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${seniority === s ? "border-blue-600 bg-blue-600 text-white" : "border-gray-300 bg-white text-gray-600 hover:border-blue-400"}`}>
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${seniority === s ? "border-primary bg-primary text-primary-foreground" : "border-border bg-transparent text-muted-foreground hover:border-primary/60 hover:text-foreground"}`}>
                   {s}
                 </button>
               ))}
@@ -122,7 +122,7 @@ export function ResumeUploader() {
           <div>
             <Label>Role tags</Label>
             <TagInput value={roleTags} onChange={setRoleTags} placeholder="e.g. backend, data-engineer, product…" className="mt-1" />
-            <p className="mt-1 text-xs text-gray-400">Used to match this resume to the right jobs</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">Used to match this resume to the right jobs</p>
           </div>
 
           <div>
@@ -131,7 +131,7 @@ export function ResumeUploader() {
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+            <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} className="h-4 w-4 rounded border-border" />
             <span className="text-sm">Set as default resume (used when no better match is found)</span>
           </label>
         </CardContent>

@@ -69,7 +69,7 @@ export default async function DiscoverPage() {
 
   return (
     <>
-      <Topbar title="Discover Jobs" />
+      <Topbar title="Discover" description="Browse and score matching jobs" />
       <div className="p-6">
         <JobFeed
           initialJobs={scoredJobs}

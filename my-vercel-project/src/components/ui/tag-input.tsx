@@ -54,14 +54,14 @@ export function TagInput({
       {value.map((tag) => (
         <span
           key={tag}
-          className="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
+          className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-medium text-primary"
         >
           {tag}
           {!disabled && (
             <button
               type="button"
               onClick={() => removeTag(tag)}
-              className="ml-0.5 rounded-full hover:bg-blue-200"
+              className="ml-0.5 rounded-full hover:bg-primary/20"
             >
               <X className="h-3 w-3" />
             </button>

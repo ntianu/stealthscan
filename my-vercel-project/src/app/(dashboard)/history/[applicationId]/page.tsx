@@ -18,10 +18,10 @@ interface Props {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  SUBMITTED: { label: "Submitted", color: "bg-green-100 text-green-800", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-  APPROVED:  { label: "Approved", color: "bg-blue-100 text-blue-800",  icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-  REJECTED:  { label: "Skipped",  color: "bg-gray-100 text-gray-600",  icon: <XCircle className="h-3.5 w-3.5" /> },
-  RESPONDED: { label: "Responded", color: "bg-purple-100 text-purple-800", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  SUBMITTED: { label: "Submitted", color: "bg-emerald-500/15 text-emerald-400", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  APPROVED:  { label: "Approved",  color: "bg-blue-500/15 text-blue-400",       icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  REJECTED:  { label: "Skipped",   color: "bg-muted text-muted-foreground",     icon: <XCircle className="h-3.5 w-3.5" /> },
+  RESPONDED: { label: "Responded", color: "bg-violet-500/15 text-violet-400",   icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
 };
 
 export default async function HistoryDetailPage({ params }: Props) {
@@ -41,46 +41,47 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   return (
     <>
-      <Topbar title="Application Detail" />
+      <Topbar title="Application Detail" description="Full record of this application" />
       <div className="p-6 max-w-3xl space-y-5">
         <Link href="/history">
-          <Button variant="ghost" size="sm" className="mb-2 gap-1 text-gray-500">
-            <ChevronLeft className="h-4 w-4" /> Back to History
+          <Button variant="ghost" size="sm" className="mb-2 gap-1 text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="h-3.5 w-3.5" /> Back to History
           </Button>
         </Link>
 
         {/* Job summary */}
         <Card>
-          <CardContent className="pt-5">
+          <CardContent className="pt-4 pb-4 px-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-xl font-semibold">{application.job.title}</h2>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                  <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{application.job.company}</span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-semibold text-foreground leading-snug">{application.job.title}</h2>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{application.job.company}</span>
                   {application.job.location && (
-                    <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{application.job.location}</span>
+                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{application.job.location}</span>
                   )}
-                  <Badge variant="outline">{application.job.source}</Badge>
+                  <Badge variant="outline" className="text-[10px] h-4 px-1.5">{application.job.source}</Badge>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${sc.color}`}>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${sc.color}`}>
                   {sc.icon}{sc.label}
                 </span>
-                <span className={`text-2xl font-bold ${fitPct >= 70 ? "text-green-600" : fitPct >= 50 ? "text-amber-600" : "text-red-500"}`}>
-                  {fitPct}% fit
+                <span className={`text-xl font-bold tabular-nums ${fitPct >= 70 ? "text-emerald-400" : fitPct >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                  {fitPct}%
                 </span>
+                <span className="text-[10px] text-muted-foreground">fit</span>
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-400">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
               {application.submittedAt && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" /> Submitted {format(application.submittedAt, "MMM d, yyyy")}
                 </span>
               )}
               <a href={application.job.applyUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 text-blue-600 hover:underline">
+                className="flex items-center gap-1 text-primary hover:underline">
                 View posting <ExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -92,7 +93,7 @@ export default async function HistoryDetailPage({ params }: Props) {
           <Card>
             <CardHeader><CardTitle className="text-sm">Match Explanation</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-700">{application.fitExplanation}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{application.fitExplanation}</p>
             </CardContent>
           </Card>
         )}
@@ -103,11 +104,11 @@ export default async function HistoryDetailPage({ params }: Props) {
             <CardHeader><CardTitle className="text-sm">Resume Used</CardTitle></CardHeader>
             <CardContent>
               <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-blue-500 shrink-0" />
+                <FileText className="h-7 w-7 text-primary shrink-0" />
                 <div>
-                  <p className="font-medium text-sm">{application.resume.name}</p>
+                  <p className="font-medium text-sm text-foreground">{application.resume.name}</p>
                   <a href={application.resume.fileUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                    className="text-xs text-primary hover:underline flex items-center gap-1">
                     Preview <ExternalLink className="h-3 w-3" />
                   </a>
                 </div>
@@ -121,7 +122,7 @@ export default async function HistoryDetailPage({ params }: Props) {
           <Card>
             <CardHeader><CardTitle className="text-sm">Cover Letter</CardTitle></CardHeader>
             <CardContent>
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+              <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">
                 {application.coverLetter}
               </pre>
             </CardContent>
@@ -134,9 +135,9 @@ export default async function HistoryDetailPage({ params }: Props) {
             <CardHeader><CardTitle className="text-sm">Application Answers</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {Object.entries(application.customAnswers as Record<string, string>).map(([q, a]) => (
-                <div key={q} className="rounded-lg bg-gray-50 p-3 border">
-                  <p className="text-xs font-medium text-gray-700 mb-1">{q}</p>
-                  <p className="text-sm text-gray-800">{a}</p>
+                <div key={q} className="rounded-lg bg-muted/30 p-3 border border-border">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{q}</p>
+                  <p className="text-sm text-foreground">{a}</p>
                 </div>
               ))}
             </CardContent>
@@ -145,9 +146,9 @@ export default async function HistoryDetailPage({ params }: Props) {
 
         {/* Proof packet */}
         {proof && (
-          <Card className="border-blue-100 bg-blue-50/30">
-            <CardHeader><CardTitle className="text-sm text-blue-700">Proof Packet</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-xs text-blue-800">
+          <Card className="border-primary/20 bg-primary/[0.06]">
+            <CardHeader className="pb-1.5 pt-3 px-4"><CardTitle className="text-sm text-primary">Proof Packet</CardTitle></CardHeader>
+            <CardContent className="space-y-2 text-xs text-primary/80 px-4 pb-3">
               <p>Created: {format(proof.createdAt, "MMM d, yyyy 'at' h:mm a")}</p>
               {proof.screenshotUrl && (
                 <div>

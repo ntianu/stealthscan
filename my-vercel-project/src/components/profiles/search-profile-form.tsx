@@ -55,8 +55,8 @@ function ToggleChip({
       onClick={onToggle}
       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         selected
-          ? "border-blue-600 bg-blue-600 text-white"
-          : "border-gray-300 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-600"
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-transparent text-muted-foreground hover:border-primary/60 hover:text-foreground"
       }`}
     >
       {label}
@@ -161,7 +161,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
                 type="checkbox"
                 checked={form.active}
                 onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                className="h-4 w-4 rounded border-gray-300"
+                className="h-4 w-4 rounded border-border"
               />
               <span>Active (included in daily scans)</span>
             </Label>
@@ -183,7 +183,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               placeholder="e.g. engineer, manager…"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-gray-400">Job title must contain at least one of these keywords</p>
+            <p className="mt-1 text-xs text-muted-foreground">Job title must contain at least one of these keywords</p>
           </div>
           <div>
             <Label>Must exclude (all of these)</Label>
@@ -193,7 +193,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               placeholder="e.g. intern, director…"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-gray-400">Skip jobs containing any of these keywords</p>
+            <p className="mt-1 text-xs text-muted-foreground">Skip jobs containing any of these keywords</p>
           </div>
         </CardContent>
       </Card>
@@ -225,7 +225,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
                 />
               ))}
             </div>
-            <p className="mt-1 text-xs text-gray-400">Leave blank to accept any work type</p>
+            <p className="mt-1 text-xs text-muted-foreground">Leave blank to accept any work type</p>
           </div>
         </CardContent>
       </Card>
@@ -295,7 +295,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               className="mt-1"
             />
           </div>
-          <p className="sm:col-span-2 text-xs text-gray-400">
+          <p className="sm:col-span-2 text-xs text-muted-foreground">
             Jobs with known salary outside this range will be filtered out. Jobs with no salary data are always included.
           </p>
         </CardContent>
@@ -315,7 +315,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               placeholder="e.g. stripe, notion…"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-gray-400">If set, only apply to these companies</p>
+            <p className="mt-1 text-xs text-muted-foreground">If set, only apply to these companies</p>
           </div>
           <div>
             <Label>Company blacklist</Label>
@@ -325,7 +325,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               placeholder="e.g. acme corp…"
               className="mt-1"
             />
-            <p className="mt-1 text-xs text-gray-400">Never apply to these companies</p>
+            <p className="mt-1 text-xs text-muted-foreground">Never apply to these companies</p>
           </div>
         </CardContent>
       </Card>
@@ -357,7 +357,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
                 />
               ))}
             </div>
-            <p className="mt-1 text-xs text-gray-400">Leave blank to search all sources</p>
+            <p className="mt-1 text-xs text-muted-foreground">Leave blank to search all sources</p>
           </div>
         </CardContent>
       </Card>
