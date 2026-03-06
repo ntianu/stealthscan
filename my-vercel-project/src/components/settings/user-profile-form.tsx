@@ -60,7 +60,16 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
           portfolioUrl: portfolioUrl || null,
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        let msg = "Server error — please try again";
+        try {
+          const json = await res.json();
+          if (json?.error) msg = json.error;
+        } catch {
+          msg = await res.text().catch(() => msg);
+        }
+        throw new Error(msg);
+      }
       toast.success("Profile saved");
     } catch (err) {
       toast.error(`Failed to save: ${String(err)}`);
