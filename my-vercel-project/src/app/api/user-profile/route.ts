@@ -15,6 +15,7 @@ const urlField = z
 const schema = z.object({
   currentTitle: z.string().optional(),
   yearsExperience: z.number().min(0).max(60).nullable().optional(),
+  targetRoles: z.array(z.string()).optional(),
   skills: z.array(z.string()).optional(),
   industries: z.array(z.string()).optional(),
   workAuth: z.string().optional(),

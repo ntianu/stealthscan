@@ -13,36 +13,40 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <Topbar title="Settings" />
-      <div className="p-6 space-y-8 max-w-3xl">
+      <Topbar title="Settings" description="Account preferences and professional profile" />
+      <div className="p-6 space-y-6 max-w-3xl">
         <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Account</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-gray-600">
-            <p><strong>Email:</strong> {user.email}</p>
-            <p><strong>Name:</strong> {user.name ?? "—"}</p>
-            <p><strong>Member since:</strong> {user.createdAt.toLocaleDateString()}</p>
+          <CardContent className="space-y-1.5 text-xs text-muted-foreground">
+            <p><span className="text-foreground/70 font-medium">Email</span> · {user.email}</p>
+            <p><span className="text-foreground/70 font-medium">Name</span> · {user.name ?? "—"}</p>
+            <p>
+              <span className="text-foreground/70 font-medium">Member since</span> ·{" "}
+              {user.createdAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </p>
           </CardContent>
         </Card>
 
         <div>
-          <h2 className="text-lg font-semibold mb-4">Your professional profile</h2>
-          <p className="text-sm text-gray-500 mb-6">
-            This information is used to calculate fit scores and generate application materials. The more detail you add, the better the matching.
+          <h2 className="text-sm font-semibold text-foreground mb-1">Professional profile</h2>
+          <p className="text-xs text-muted-foreground mb-5">
+            The more detail you add, the better the AI matching and cover-letter quality.
           </p>
           <UserProfileForm
             initial={
               userProfile
                 ? {
-                    currentTitle: userProfile.currentTitle,
+                    currentTitle:    userProfile.currentTitle,
                     yearsExperience: userProfile.yearsExperience,
-                    skills: userProfile.skills,
-                    industries: userProfile.industries,
-                    workAuth: userProfile.workAuth,
-                    linkedinUrl: userProfile.linkedinUrl,
-                    githubUrl: userProfile.githubUrl,
-                    portfolioUrl: userProfile.portfolioUrl,
+                    targetRoles:     userProfile.targetRoles,
+                    skills:          userProfile.skills,
+                    industries:      userProfile.industries,
+                    workAuth:        userProfile.workAuth,
+                    linkedinUrl:     userProfile.linkedinUrl,
+                    githubUrl:       userProfile.githubUrl,
+                    portfolioUrl:    userProfile.portfolioUrl,
                   }
                 : null
             }
@@ -50,16 +54,17 @@ export default async function SettingsPage() {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>LinkedIn Session</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">LinkedIn session</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-gray-600 space-y-2">
+          <CardContent className="text-xs text-muted-foreground space-y-2">
             <p>
-              To enable LinkedIn Easy Apply scraping, paste your <code>li_at</code> cookie value below.
-              This is stored encrypted and only used for job discovery.
+              To enable LinkedIn Easy Apply scraping, paste your{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-[11px]">li_at</code> cookie value.
+              Stored encrypted, used only for job discovery.
             </p>
-            <p className="text-amber-600">
-              LinkedIn session cookie configuration coming in a future update.
+            <p className="text-amber-500/80">
+              LinkedIn session configuration coming in a future update.
             </p>
           </CardContent>
         </Card>

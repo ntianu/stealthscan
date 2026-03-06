@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AutoApply — Precision Job Bot",
+  title: "StealthScan — Precision Job Bot",
   description:
     "AI-powered job application bot that finds, scores, and prepares applications for your review.",
 };
@@ -27,12 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      {/* dark class enables the premium navy theme globally */}
+      <html lang="en" className="dark">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           {children}
-          <Toaster />
+          <Toaster theme="dark" />
         </body>
       </html>
     </ClerkProvider>
