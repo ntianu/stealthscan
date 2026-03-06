@@ -65,8 +65,8 @@ export async function generateCustomAnswers(
     .join("\n\n");
 
   const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 400,
+    model: "claude-opus-4-6",
+    max_tokens: 600,
     system: `Answer ATS application questions truthfully using ONLY the provided user profile. Return a JSON object mapping question text to answer string. Never invent facts.`,
     messages: [
       {
@@ -88,7 +88,7 @@ Respond with JSON only: { "Q1": "answer", "Q2": "answer", ... }`,
 
   try {
     const text =
-      message.content[0].type === "text" ? message.content[0].text : "{}";
+      message.content.find((b) => b.type === "text")?.text ?? "{}";
     const jsonMatch = text.match(/\{[\s\S]+\}/);
     if (!jsonMatch) return {};
     return JSON.parse(jsonMatch[0]);

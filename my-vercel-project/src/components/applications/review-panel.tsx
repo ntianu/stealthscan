@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle2, XCircle, AlertCircle, FileText, Building2,
   MapPin, ExternalLink, Loader2, ThumbsUp, ThumbsDown,
-  ClipboardCopy, Check,
+  ClipboardCopy, Check, Sparkles,
 } from "lucide-react";
 
 interface ApplyKit {
@@ -26,6 +26,15 @@ interface VerifierReport {
   passed: boolean;
   issues?: string[];
   warnings?: string[];
+}
+
+interface GenerateResult {
+  coverLetter: string | null;
+  customAnswers: Record<string, string> | null;
+  verifierReport: VerifierReport | null;
+  fitScore: number;
+  fitExplanation: string;
+  tokensUsed: number;
 }
 
 interface ReviewPanelProps {
@@ -48,6 +57,7 @@ interface ReviewPanelProps {
   verifierReport: VerifierReport | null;
   resume: { name: string; fileUrl: string } | null;
   status: string;
+  hasProfile: boolean;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -128,24 +138,56 @@ function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void })
 export function ReviewPanel({
   applicationId,
   job,
-  fitScore,
-  fitExplanation,
+  fitScore: initialFitScore,
+  fitExplanation: initialFitExplanation,
   coverLetter: initialCoverLetter,
-  customAnswers,
-  verifierReport,
+  customAnswers: initialCustomAnswers,
+  verifierReport: initialVerifierReport,
   resume,
   status: initialStatus,
+  hasProfile,
 }: ReviewPanelProps) {
   const router = useRouter();
   const [coverLetter, setCoverLetter] = useState(initialCoverLetter ?? "");
+  const [customAnswers, setCustomAnswers] = useState(initialCustomAnswers);
+  const [verifierReport, setVerifierReport] = useState(initialVerifierReport);
+  const [fitScore, setFitScore] = useState(initialFitScore);
+  const [fitExplanation, setFitExplanation] = useState(initialFitExplanation);
   const [approving, setApproving] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [kit, setKit] = useState<ApplyKit | null>(null);
   const [status, setStatus] = useState(initialStatus);
 
   const isActionable = status === "PREPARED";
   const fitPct = Math.round(fitScore * 100);
   const fitColor = fitPct >= 70 ? "text-green-600" : fitPct >= 50 ? "text-amber-600" : "text-red-500";
+
+  const handleGenerate = async () => {
+    if (!hasProfile) {
+      toast.error("Complete your Professional Profile in Settings first.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/generate`, { method: "POST" });
+      const data: GenerateResult = await res.json();
+      if (!res.ok) {
+        toast.error((data as unknown as { error: string }).error ?? "Generation failed");
+        return;
+      }
+      setCoverLetter(data.coverLetter ?? "");
+      setCustomAnswers(data.customAnswers);
+      setVerifierReport(data.verifierReport);
+      setFitScore(data.fitScore);
+      setFitExplanation(data.fitExplanation);
+      toast.success(`AI content generated (${data.tokensUsed.toLocaleString()} tokens)`);
+    } catch (err) {
+      toast.error(`Generation failed: ${String(err)}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleApprove = async () => {
     setApproving(true);
@@ -283,9 +325,25 @@ export function ReviewPanel({
         {/* Cover letter */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-sm">Cover Letter</CardTitle>
-              {coverLetter && <CopyButton text={coverLetter} />}
+              <div className="flex items-center gap-2">
+                {isActionable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50"
+                    onClick={handleGenerate}
+                    disabled={generating || approving || rejecting}
+                  >
+                    {generating
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Sparkles className="h-3 w-3" />}
+                    {generating ? "Generating…" : coverLetter ? "Regenerate" : "Generate with AI"}
+                  </Button>
+                )}
+                {coverLetter && <CopyButton text={coverLetter} />}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

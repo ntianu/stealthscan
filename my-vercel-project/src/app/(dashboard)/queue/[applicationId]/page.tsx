@@ -15,10 +15,13 @@ export default async function ApplicationReviewPage({ params }: Props) {
   const user = await requireUser();
   const { applicationId } = await params;
 
-  const application = await db.application.findUnique({
-    where: { id: applicationId, userId: user.id },
-    include: { job: true, resume: true },
-  });
+  const [application, userProfile] = await Promise.all([
+    db.application.findUnique({
+      where: { id: applicationId, userId: user.id },
+      include: { job: true, resume: true },
+    }),
+    db.userProfile.findUnique({ where: { userId: user.id } }),
+  ]);
 
   if (!application) notFound();
 
@@ -58,6 +61,7 @@ export default async function ApplicationReviewPage({ params }: Props) {
           }
           resume={application.resume ? { name: application.resume.name, fileUrl: application.resume.fileUrl } : null}
           status={application.status}
+          hasProfile={!!userProfile}
         />
       </div>
     </>

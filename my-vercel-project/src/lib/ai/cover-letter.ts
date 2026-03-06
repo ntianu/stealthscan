@@ -59,14 +59,15 @@ ${bulletList || "No bullets provided—use only the profile facts above."}
 Write the cover letter body now:`;
 
   const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 600,
+    model: "claude-opus-4-6",
+    max_tokens: 800,
+    thinking: { type: "adaptive" },
     messages: [{ role: "user", content: userMessage }],
     system: systemPrompt,
   });
 
   const text =
-    message.content[0].type === "text" ? message.content[0].text : "";
+    message.content.find((b) => b.type === "text")?.text ?? "";
   const tokensUsed = message.usage.input_tokens + message.usage.output_tokens;
 
   return { text, tokensUsed };
