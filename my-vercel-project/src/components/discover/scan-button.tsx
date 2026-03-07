@@ -23,11 +23,17 @@ export function ScanButton() {
       const inserted: number = data.scan?.inserted ?? 0;
       const prepared: number = data.prepare?.prepared ?? 0;
       const errors: string[] = data.scan?.errors ?? [];
+      const scanError: string | undefined = data.scan?.error;
+      const prepError: string | undefined = data.prepare?.error;
 
       toast.dismiss(toastId);
 
-      if (errors.length > 0) {
-        toast.warning(`Scan finished with warnings: ${errors[0]}`);
+      if (scanError || prepError) {
+        toast.error(`Scan error: ${scanError ?? prepError}`);
+      } else if (errors.length > 0) {
+        toast.warning(
+          `Found ${inserted} new job${inserted !== 1 ? "s" : ""} (${errors.length} warning${errors.length !== 1 ? "s" : ""})`
+        );
       } else {
         toast.success(
           `Found ${inserted} new job${inserted !== 1 ? "s" : ""}, prepared ${prepared} application${prepared !== 1 ? "s" : ""}`

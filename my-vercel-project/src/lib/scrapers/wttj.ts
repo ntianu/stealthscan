@@ -92,12 +92,17 @@ export async function scrapeWttj(params: {
           "X-Algolia-Application-Id": ALGOLIA_APP_ID,
           "X-Algolia-API-Key": ALGOLIA_API_KEY,
           "Content-Type": "application/json",
+          // Required: Algolia key is referer-restricted to WTTJ's domain
+          "Referer": "https://www.welcometothejungle.com/",
+          "Origin": "https://www.welcometothejungle.com",
         },
         body: JSON.stringify(body),
         cache: "no-store",
       });
 
-      if (!res.ok) break;
+      if (!res.ok) {
+        throw new Error(`Algolia returned ${res.status}: ${await res.text()}`);
+      }
       const data: AlgoliaResponse = await res.json();
       if (!data.hits?.length) break;
 
@@ -126,8 +131,9 @@ export async function scrapeWttj(params: {
       }
 
       if (page >= data.nbPages - 1) break;
-    } catch {
-      break;
+    } catch (err) {
+      // Re-throw so the caller can log the error properly
+      throw err;
     }
   }
 
