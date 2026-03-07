@@ -20,11 +20,14 @@ export function ScanButton() {
 
       if (!res.ok) throw new Error(data.error ?? "Scan failed");
 
+      const fetched: number = data.scan?.fetched ?? 0;
       const inserted: number = data.scan?.inserted ?? 0;
+      const deduped: number = data.scan?.deduped ?? 0;
       const prepared: number = data.prepare?.prepared ?? 0;
       const errors: string[] = data.scan?.errors ?? [];
       const scanError: string | undefined = data.scan?.error;
       const prepError: string | undefined = data.prepare?.error;
+      const debugLines: string[] = data.scan?.debug ?? [];
 
       toast.dismiss(toastId);
 
@@ -32,11 +35,15 @@ export function ScanButton() {
         toast.error(`Scan error: ${scanError ?? prepError}`);
       } else if (errors.length > 0) {
         toast.warning(
-          `Found ${inserted} new job${inserted !== 1 ? "s" : ""} (${errors.length} warning${errors.length !== 1 ? "s" : ""})`
+          `Fetched ${fetched}, inserted ${inserted}, skipped ${deduped} duplicates (${errors.length} error${errors.length !== 1 ? "s" : ""})`
         );
+        console.warn("Scan errors:", errors);
+      } else if (fetched === 0) {
+        toast.warning(`No jobs returned from job boards. Check Settings → Target Roles.`);
+        console.info("Scan debug:", debugLines.join("\n"));
       } else {
         toast.success(
-          `Found ${inserted} new job${inserted !== 1 ? "s" : ""}, prepared ${prepared} application${prepared !== 1 ? "s" : ""}`
+          `Fetched ${fetched} · ${inserted} new · ${deduped} duplicate${deduped !== 1 ? "s" : ""} · prepared ${prepared}`
         );
       }
 

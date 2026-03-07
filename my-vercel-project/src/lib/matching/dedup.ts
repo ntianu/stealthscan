@@ -24,10 +24,15 @@ export async function filterNewJobs(jobs: RawJob[]): Promise<RawJob[]> {
 
 /**
  * Bulk-insert new jobs, skipping duplicates.
+ * Returns { fetched, inserted, deduped } counts.
  */
-export async function insertNewJobs(jobs: RawJob[]): Promise<number> {
+export async function insertNewJobs(
+  jobs: RawJob[]
+): Promise<{ fetched: number; inserted: number; deduped: number }> {
+  if (jobs.length === 0) return { fetched: 0, inserted: 0, deduped: 0 };
   const newJobs = await filterNewJobs(jobs);
-  if (newJobs.length === 0) return 0;
+  const deduped = jobs.length - newJobs.length;
+  if (newJobs.length === 0) return { fetched: jobs.length, inserted: 0, deduped };
 
   await db.job.createMany({
     data: newJobs.map((job) => ({
@@ -48,5 +53,5 @@ export async function insertNewJobs(jobs: RawJob[]): Promise<number> {
     skipDuplicates: true,
   });
 
-  return newJobs.length;
+  return { fetched: jobs.length, inserted: newJobs.length, deduped };
 }

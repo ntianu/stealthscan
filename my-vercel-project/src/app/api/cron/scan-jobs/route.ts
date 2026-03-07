@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
   }
 
   let totalInserted = 0;
+  let totalFetched = 0;
+  let totalDeduped = 0;
   const errors: string[] = [];
+  const debug: string[] = [];
 
   for (const profile of profiles) {
     // Build search queries: prefer the user's target roles, then title includes, then profile name
@@ -38,6 +41,8 @@ export async function GET(req: NextRequest) {
         ? profile.titleIncludes
         : [profile.name]; // profile name is the last-resort (e.g. "Senior PM")
 
+    debug.push(`Profile "${profile.name}" → queries: [${queries.slice(0, 3).join(", ")}]`);
+
     const location = profile.locations[0] ?? "";
     const remoteOnly = profile.remoteTypes.includes("REMOTE") && profile.remoteTypes.length === 1;
 
@@ -46,8 +51,11 @@ export async function GET(req: NextRequest) {
       for (const query of queries.slice(0, 3)) {
         try {
           const jobs = await scrapeWttj({ query, location, remoteOnly });
-          const count = await insertNewJobs(jobs);
-          totalInserted += count;
+          const result = await insertNewJobs(jobs);
+          totalFetched += result.fetched;
+          totalInserted += result.inserted;
+          totalDeduped += result.deduped;
+          debug.push(`  WTTJ "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`);
         } catch (err) {
           errors.push(`WTTJ error for "${query}": ${String(err)}`);
         }
@@ -63,8 +71,10 @@ export async function GET(req: NextRequest) {
         const jobs = await scrapeGreenhouseMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
-        const count = await insertNewJobs(jobs);
-        totalInserted += count;
+        const result = await insertNewJobs(jobs);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
       } catch (err) {
         errors.push(`Greenhouse error: ${String(err)}`);
       }
@@ -79,8 +89,10 @@ export async function GET(req: NextRequest) {
         const jobs = await scrapeLeverMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
-        const count = await insertNewJobs(jobs);
-        totalInserted += count;
+        const result = await insertNewJobs(jobs);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
       } catch (err) {
         errors.push(`Lever error: ${String(err)}`);
       }
@@ -94,7 +106,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     message: "Scan complete",
     profilesScanned: profiles.length,
+    fetched: totalFetched,
     inserted: totalInserted,
+    deduped: totalDeduped,
     errors,
+    debug,
   });
 }
