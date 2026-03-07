@@ -1,26 +1,37 @@
 import { RawJob } from "./types";
 
-interface WttjJob {
+// WTTJ uses Algolia for job search (public read-only credentials)
+const ALGOLIA_APP_ID = "CSEKHVMS53";
+const ALGOLIA_API_KEY = "4bd8f6215d0cc52b26430765769e65a0";
+const ALGOLIA_INDEX = "wk_cms_jobs_production";
+const ALGOLIA_URL = `https://${ALGOLIA_APP_ID.toLowerCase()}.algolia.net/1/indexes/${ALGOLIA_INDEX}/query`;
+
+interface AlgoliaHit {
+  objectID: string;
   slug: string;
   name: string;
-  contract_type?: { name?: string };
-  office?: { name?: string; country?: { name?: string } };
-  remote?: string;
-  salary_min?: number;
-  salary_max?: number;
-  description?: string;
+  reference?: string;
   profile?: string;
-  company?: {
-    name: string;
-    slug: string;
-  };
   published_at?: string;
-  apply_url?: string;
+  remote?: string;
+  contract_type?: string;
+  salary_minimum?: number | null;
+  salary_maximum?: number | null;
+  salary_yearly_minimum?: number | null;
+  salary_yearly_maximum?: number | null;
+  organization?: {
+    name?: string;
+    slug?: string;
+  };
+  office?: { city?: string; country?: { name?: string } };
+  offices?: Array<{ city?: string; country?: { name?: string } }>;
+  sectors?: Array<{ name?: string }>;
 }
 
-interface WttjResponse {
-  jobs: WttjJob[];
-  meta?: { pagination?: { total_pages?: number } };
+interface AlgoliaResponse {
+  hits: AlgoliaHit[];
+  nbPages: number;
+  page: number;
 }
 
 function parseRemote(remote?: string): RawJob["remoteType"] {
@@ -44,8 +55,14 @@ function extractRequirements(text: string): string[] {
   return techKeywords.filter((kw) => lower.includes(kw));
 }
 
+function getLocation(hit: AlgoliaHit): string | null {
+  const off = hit.office ?? hit.offices?.[0];
+  if (!off) return null;
+  return [off.city, off.country?.name].filter(Boolean).join(", ") || null;
+}
+
 /**
- * Scrape Welcome to the Jungle public API for jobs matching query/location.
+ * Scrape Welcome to the Jungle via their Algolia search index.
  */
 export async function scrapeWttj(params: {
   query: string;
@@ -53,55 +70,62 @@ export async function scrapeWttj(params: {
   remoteOnly?: boolean;
   maxPages?: number;
 }): Promise<RawJob[]> {
-  const { query, location, remoteOnly = false, maxPages = 3 } = params;
+  const { query, remoteOnly = false, maxPages = 3 } = params;
   const jobs: RawJob[] = [];
 
-  for (let page = 1; page <= maxPages; page++) {
-    const url = new URL("https://www.welcometothejungle.com/api/v2/jobs");
-    url.searchParams.set("query", query);
-    url.searchParams.set("page", String(page));
-    url.searchParams.set("per_page", "30");
-    if (location) url.searchParams.set("location", location);
-    if (remoteOnly) url.searchParams.set("remote", "fulltime");
+  for (let page = 0; page < maxPages; page++) {
+    const body: Record<string, unknown> = {
+      query,
+      hitsPerPage: 30,
+      page,
+    };
+
+    // Filter to remote-only jobs
+    if (remoteOnly) {
+      body.facetFilters = [["remote:fulltime"]];
+    }
 
     try {
-      const res = await fetch(url.toString(), {
+      const res = await fetch(ALGOLIA_URL, {
+        method: "POST",
         headers: {
-          Accept: "application/json",
-          "Accept-Language": "en-US",
+          "X-Algolia-Application-Id": ALGOLIA_APP_ID,
+          "X-Algolia-API-Key": ALGOLIA_API_KEY,
+          "Content-Type": "application/json",
         },
-        next: { revalidate: 0 },
+        body: JSON.stringify(body),
+        cache: "no-store",
       });
 
       if (!res.ok) break;
-      const data: WttjResponse = await res.json();
-      if (!data.jobs?.length) break;
+      const data: AlgoliaResponse = await res.json();
+      if (!data.hits?.length) break;
 
-      for (const j of data.jobs) {
-        const description = [j.description, j.profile]
-          .filter(Boolean)
-          .join("\n\n");
+      for (const hit of data.hits) {
+        const orgSlug = hit.organization?.slug ?? "";
+        const applyUrl = `https://www.welcometothejungle.com/companies/${orgSlug}/jobs/${hit.slug}`;
+        const description = hit.profile ?? "";
+
+        const salaryMin = hit.salary_yearly_minimum ?? hit.salary_minimum ?? null;
+        const salaryMax = hit.salary_yearly_maximum ?? hit.salary_maximum ?? null;
 
         jobs.push({
           source: "WTTJ",
-          externalId: j.slug,
-          title: j.name,
-          company: j.company?.name ?? "Unknown",
-          location: j.office?.name ?? null,
-          remoteType: parseRemote(j.remote),
-          salaryMin: j.salary_min ?? null,
-          salaryMax: j.salary_max ?? null,
+          externalId: hit.reference ?? hit.objectID,
+          title: hit.name,
+          company: hit.organization?.name ?? "Unknown",
+          location: getLocation(hit),
+          remoteType: parseRemote(hit.remote),
+          salaryMin: salaryMin ? Math.round(salaryMin) : null,
+          salaryMax: salaryMax ? Math.round(salaryMax) : null,
           description,
           requirements: extractRequirements(description),
-          applyUrl:
-            j.apply_url ??
-            `https://www.welcometothejungle.com/jobs/${j.slug}`,
-          postedAt: j.published_at ? new Date(j.published_at) : null,
+          applyUrl,
+          postedAt: hit.published_at ? new Date(hit.published_at) : null,
         });
       }
 
-      const totalPages = data.meta?.pagination?.total_pages ?? 1;
-      if (page >= totalPages) break;
+      if (page >= data.nbPages - 1) break;
     } catch {
       break;
     }
