@@ -44,8 +44,8 @@ export async function POST() {
       for (const query of queries) {
         try {
           const jobs = await scrapeWttj({ query, location, remoteOnly, maxPages: 2 });
-          const count = await insertNewJobs(jobs);
-          totalInserted += count;
+          const result = await insertNewJobs(jobs);
+          totalInserted += result.inserted;
         } catch (err) {
           errors.push(`WTTJ "${query}": ${String(err)}`);
         }
@@ -61,8 +61,8 @@ export async function POST() {
         const jobs = await scrapeGreenhouseMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
-        const count = await insertNewJobs(jobs);
-        totalInserted += count;
+        const result = await insertNewJobs(jobs);
+        totalInserted += result.inserted;
       } catch (err) {
         errors.push(`Greenhouse: ${String(err)}`);
       }
@@ -77,8 +77,8 @@ export async function POST() {
         const jobs = await scrapeLeverMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
-        const count = await insertNewJobs(jobs);
-        totalInserted += count;
+        const result = await insertNewJobs(jobs);
+        totalInserted += result.inserted;
       } catch (err) {
         errors.push(`Lever: ${String(err)}`);
       }
