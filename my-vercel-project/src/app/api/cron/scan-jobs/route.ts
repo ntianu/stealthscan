@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   const profiles = await db.searchProfile.findMany({
     where: { active: true },
+    include: { user: { include: { userProfile: true } } },
   });
 
   if (profiles.length === 0) {
@@ -28,16 +29,21 @@ export async function GET(req: NextRequest) {
   const errors: string[] = [];
 
   for (const profile of profiles) {
-    const queries = profile.titleIncludes.length > 0
-      ? profile.titleIncludes
-      : ["software engineer"]; // fallback query
+    // Build search queries: prefer the user's target roles, then title includes, then profile name
+    const targetRoles = profile.user.userProfile?.targetRoles ?? [];
+    const queries =
+      targetRoles.length > 0
+        ? targetRoles
+        : profile.titleIncludes.length > 0
+        ? profile.titleIncludes
+        : [profile.name]; // profile name is the last-resort (e.g. "Senior PM")
 
     const location = profile.locations[0] ?? "";
     const remoteOnly = profile.remoteTypes.includes("REMOTE") && profile.remoteTypes.length === 1;
 
     // WTTJ (API-based, no auth needed)
     if (profile.sources.includes("WTTJ") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 2)) {
+      for (const query of queries.slice(0, 3)) {
         try {
           const jobs = await scrapeWttj({ query, location, remoteOnly });
           const count = await insertNewJobs(jobs);

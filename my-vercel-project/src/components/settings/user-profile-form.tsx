@@ -166,8 +166,9 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Target roles</CardTitle>
           <CardDescription className="text-xs">
-            Job titles you&apos;re actively pursuing. Used by the scanner to prioritise
-            the most relevant listings.
+            Job titles you&apos;re actively pursuing. These are used as the <strong>search queries</strong> sent
+            to job boards (WTTJ, Greenhouse, Lever) during each scan — so set them to exactly what you&apos;d type
+            into a job board search box.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -176,11 +177,11 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
             <TagInput
               value={targetRoles}
               onChange={setTargetRoles}
-              placeholder="e.g. Senior Engineer, Staff Engineer, EM…"
+              placeholder="e.g. Product Manager, Senior Engineer, Data Scientist…"
               className="mt-1.5"
             />
             <p className="mt-1.5 text-[11px] text-muted-foreground">
-              Press Enter or comma to add each role title.
+              Press Enter or comma to add each role. Add up to 3 for best results.
             </p>
           </div>
 
