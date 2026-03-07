@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { FileText, Plus, ExternalLink } from "lucide-react";
+import { ResumeActions } from "@/components/resumes/resume-actions";
 
 export default async function ResumesPage() {
   const user = await requireUser();
@@ -49,10 +50,13 @@ export default async function ResumesPage() {
               <Card key={resume.id} className="hover:border-primary/30 transition-colors">
                 <CardHeader className="pb-1.5 pt-3 px-4">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-sm font-semibold leading-snug">{resume.name}</CardTitle>
-                    {resume.isDefault && (
-                      <Badge variant="default" className="text-[10px] shrink-0">Default</Badge>
-                    )}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <CardTitle className="text-sm font-semibold leading-snug truncate">{resume.name}</CardTitle>
+                      {resume.isDefault && (
+                        <Badge variant="default" className="text-[10px] shrink-0">Default</Badge>
+                      )}
+                    </div>
+                    <ResumeActions id={resume.id} isDefault={resume.isDefault} />
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-3 space-y-2.5">
