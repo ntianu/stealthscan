@@ -6,6 +6,8 @@ import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
 import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { scrapeWwr } from "@/lib/scrapers/wwr";
 import { scrapeHackerNews } from "@/lib/scrapers/hn";
+import { scrapeJobicy } from "@/lib/scrapers/jobicy";
+import { scrapeWorkingNomads } from "@/lib/scrapers/workingnomads";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
@@ -208,6 +210,42 @@ export async function runScan(): Promise<ScanResult> {
         } catch (err) {
           errors.push(`WWR error for "${query}": ${String(err)}`);
         }
+      }
+    }
+
+    // Jobicy (JSON API, US-filtered, salary data, non-engineering categories)
+    if (profile.sources.includes("JOBICY") || profile.sources.length === 0) {
+      try {
+        const raw = await scrapeJobicy();
+        const relevant = filterByQueryRelevance(raw, queries[0] ?? "");
+        const jobs = filterByProfileLocations(relevant, profile.locations);
+        const result = await insertNewJobs(jobs);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
+        debug.push(
+          `  Jobicy: fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+        );
+      } catch (err) {
+        errors.push(`Jobicy error: ${String(err)}`);
+      }
+    }
+
+    // Working Nomads (JSON API, ~30 remote jobs, broad role coverage)
+    if (profile.sources.includes("WORKINGNOMADS") || profile.sources.length === 0) {
+      try {
+        const raw = await scrapeWorkingNomads();
+        const relevant = filterByQueryRelevance(raw, queries[0] ?? "");
+        const jobs = filterByProfileLocations(relevant, profile.locations);
+        const result = await insertNewJobs(jobs);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
+        debug.push(
+          `  WorkingNomads: fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+        );
+      } catch (err) {
+        errors.push(`WorkingNomads error: ${String(err)}`);
       }
     }
 

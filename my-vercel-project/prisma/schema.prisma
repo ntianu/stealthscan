@@ -18,6 +18,8 @@ enum Source {
   REMOTIVE
   WEWORKREMOTELY
   HACKERNEWS
+  JOBICY
+  WORKINGNOMADS
 }
 
 enum RemoteType {

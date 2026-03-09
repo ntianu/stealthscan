@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 const REMOTE_TYPES = ["REMOTE", "HYBRID", "ONSITE"] as const;
 const SENIORITY_LEVELS = ["INTERN", "JUNIOR", "MID", "SENIOR", "LEAD", "EXECUTIVE"] as const;
 const JOB_TYPES = ["FULLTIME", "PARTTIME", "CONTRACT", "FREELANCE", "INTERNSHIP"] as const;
-const SOURCES = ["LINKEDIN", "WTTJ", "REMOTIVE", "WEWORKREMOTELY", "HACKERNEWS", "GREENHOUSE", "LEVER"] as const;
+const SOURCES = ["LINKEDIN", "WTTJ", "REMOTIVE", "WEWORKREMOTELY", "HACKERNEWS", "JOBICY", "WORKINGNOMADS", "GREENHOUSE", "LEVER"] as const;
 
 type MultiEnum<T extends string> = T[];
 
