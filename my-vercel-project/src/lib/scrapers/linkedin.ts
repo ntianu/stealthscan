@@ -32,45 +32,48 @@ function detectRemote(locationText: string): RawJob["remoteType"] {
 function parseJobs(html: string): RawJob[] {
   const jobs: RawJob[] = [];
 
-  // Each job card is a <li> containing a data-entity-urn or job view link
-  const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/g;
-  let match: RegExpExecArray | null;
+  // Split on <li> — each block is one job card
+  const liBlocks = html.split("<li>").slice(1);
 
-  while ((match = liPattern.exec(html)) !== null) {
-    const card = match[1];
-
-    // Job ID from URL
-    const idMatch = card.match(/\/jobs\/view\/(\d+)/);
+  for (const block of liBlocks) {
+    // Job ID from data-entity-urn attribute
+    const idMatch = block.match(/data-entity-urn="urn:li:jobPosting:(\d+)"/);
     if (!idMatch) continue;
     const externalId = idMatch[1];
 
-    // Title — inside an h3 with base-search-card__title class
-    const titleMatch = card.match(
-      /class="[^"]*base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/
+    // Apply URL — clean slug URL without tracking params
+    const urlMatch = block.match(
+      /href="(https:\/\/www\.linkedin\.com\/jobs\/view\/[^"?]+)/
+    );
+    const applyUrl = urlMatch
+      ? urlMatch[1]
+      : `https://www.linkedin.com/jobs/view/${externalId}/`;
+
+    // Title — h3 with base-search-card__title class
+    const titleMatch = block.match(
+      /<h3[^>]*base-search-card__title[^>]*>\s*([\s\S]*?)\s*<\/h3>/
     );
     const title = titleMatch
       ? titleMatch[1].replace(/<[^>]+>/g, "").trim()
       : "";
 
-    // Company — inside an h4 / anchor with base-search-card__subtitle class
-    const companyMatch = card.match(
-      /class="[^"]*base-search-card__subtitle[^"]*"[\s\S]*?>([\s\S]*?)<\/(?:h4|a)>/
+    // Company — anchor with hidden-nested-link class inside the subtitle h4
+    const companyMatch = block.match(
+      /class="hidden-nested-link"[^>]*>\s*([\s\S]*?)\s*<\/a>/
     );
     const company = companyMatch
       ? companyMatch[1].replace(/<[^>]+>/g, "").trim()
       : "";
 
-    // Location — inside span with job-search-card__location class
-    const locMatch = card.match(
-      /class="[^"]*job-search-card__location[^"]*"[^>]*>([\s\S]*?)<\/span>/
+    // Location — span with job-search-card__location class
+    const locMatch = block.match(
+      /<span[^>]*job-search-card__location[^>]*>\s*([\s\S]*?)\s*<\/span>/
     );
     const locationText = locMatch
       ? locMatch[1].replace(/<[^>]+>/g, "").trim()
       : "";
 
     if (!title || !company) continue;
-
-    const applyUrl = `https://www.linkedin.com/jobs/view/${externalId}/`;
 
     jobs.push({
       source: "LINKEDIN",
