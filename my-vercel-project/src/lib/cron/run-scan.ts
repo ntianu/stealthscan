@@ -3,6 +3,7 @@ import { scrapeWttj } from "@/lib/scrapers/wttj";
 import { scrapeGreenhouseMany } from "@/lib/scrapers/greenhouse";
 import { scrapeLeverMany } from "@/lib/scrapers/lever";
 import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
+import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
@@ -148,6 +149,26 @@ export async function runScan(): Promise<ScanResult> {
           );
         } catch (err) {
           errors.push(`LinkedIn error for "${query}": ${String(err)}`);
+        }
+      }
+    }
+
+    // Remotive (free JSON API — remote jobs only, always pass location filter)
+    if (profile.sources.includes("REMOTIVE") || profile.sources.length === 0) {
+      for (const query of queries.slice(0, 3)) {
+        try {
+          const raw = await scrapeRemotive({ query });
+          // Remote jobs bypass location filter, but still apply it for consistency
+          const jobs = filterByProfileLocations(raw, profile.locations);
+          const result = await insertNewJobs(jobs);
+          totalFetched += result.fetched;
+          totalInserted += result.inserted;
+          totalDeduped += result.deduped;
+          debug.push(
+            `  Remotive "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+          );
+        } catch (err) {
+          errors.push(`Remotive error for "${query}": ${String(err)}`);
         }
       }
     }

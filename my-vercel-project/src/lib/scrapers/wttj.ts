@@ -70,8 +70,20 @@ export async function scrapeWttj(params: {
   remoteOnly?: boolean;
   maxPages?: number;
 }): Promise<RawJob[]> {
-  const { query, remoteOnly = false, maxPages = 3 } = params;
+  const { query, location, remoteOnly = false, maxPages = 3 } = params;
   const jobs: RawJob[] = [];
+
+  // Build facet filters: remote filter and/or city filter
+  // office.city:CITY is the working Algolia facet (country-level filter returns 0 results)
+  const facetFilters: string[][] = [];
+  if (remoteOnly) {
+    facetFilters.push(["remote:fulltime"]);
+  } else if (location) {
+    // Extract just the city name (drop country suffix like ", US" or ", France")
+    const city = location.split(",")[0].trim();
+    // Include both remote jobs AND jobs in the target city
+    facetFilters.push([`remote:fulltime`, `office.city:${city}`]);
+  }
 
   for (let page = 0; page < maxPages; page++) {
     const body: Record<string, unknown> = {
@@ -80,9 +92,8 @@ export async function scrapeWttj(params: {
       page,
     };
 
-    // Filter to remote-only jobs
-    if (remoteOnly) {
-      body.facetFilters = [["remote:fulltime"]];
+    if (facetFilters.length > 0) {
+      body.facetFilters = facetFilters;
     }
 
     try {

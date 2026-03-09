@@ -15,6 +15,7 @@ enum Source {
   WTTJ
   GREENHOUSE
   LEVER
+  REMOTIVE
 }
 
 enum RemoteType {
