@@ -16,6 +16,7 @@ enum Source {
   GREENHOUSE
   LEVER
   REMOTIVE
+  WEWORKREMOTELY
 }
 
 enum RemoteType {

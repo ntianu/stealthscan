@@ -35,10 +35,28 @@ export default async function DiscoverPage() {
 
   // Only show jobs passing at least one active profile's hard filters.
   // If no search profiles exist yet, show everything.
-  const visibleJobs =
+  const hardFiltered =
     searchProfiles.length === 0
       ? jobs
       : jobs.filter((job) => searchProfiles.some((p) => passesHardFilters(job, p)));
+
+  // Secondary filter: when no search profile has explicit titleIncludes set,
+  // fall back to the user's targetRoles to eliminate stale off-role jobs.
+  const hasExplicitTitleFilter = searchProfiles.some((p) => p.titleIncludes.length > 0);
+  const targetRoles = userProfile?.targetRoles ?? [];
+  const visibleJobs =
+    hasExplicitTitleFilter || targetRoles.length === 0
+      ? hardFiltered
+      : hardFiltered.filter((job) => {
+          const titleLower = job.title.toLowerCase();
+          return targetRoles.some((role) =>
+            role
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w) => w.length > 2)
+              .some((w) => titleLower.includes(w))
+          );
+        });
 
   // Score every visible job server-side
   const scoredJobs: ScoredJob[] = visibleJobs.map(job => {
