@@ -71,5 +71,18 @@ export function passesHardFilters(job: Job, profile: SearchProfile): boolean {
     return false;
   }
 
+  // Location filter: skip for remote jobs; otherwise require at least one profile location to match
+  if (
+    profile.locations.length > 0 &&
+    job.remoteType !== "REMOTE" &&
+    job.location !== null
+  ) {
+    const jobLoc = job.location.toLowerCase();
+    const hasMatch = profile.locations.some((loc) =>
+      jobLoc.includes(loc.toLowerCase()) || loc.toLowerCase().includes(jobLoc)
+    );
+    if (!hasMatch) return false;
+  }
+
   return true;
 }

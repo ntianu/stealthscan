@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { scrapeWttj } from "@/lib/scrapers/wttj";
 import { scrapeGreenhouseMany } from "@/lib/scrapers/greenhouse";
 import { scrapeLeverMany } from "@/lib/scrapers/lever";
+import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
 import { insertNewJobs } from "@/lib/matching/dedup";
 
 export interface ScanResult {
@@ -110,6 +111,24 @@ export async function runScan(): Promise<ScanResult> {
         totalDeduped += result.deduped;
       } catch (err) {
         errors.push(`Lever error: ${String(err)}`);
+      }
+    }
+
+    // LinkedIn (public Easy Apply listings)
+    if (profile.sources.includes("LINKEDIN") || profile.sources.length === 0) {
+      for (const query of queries.slice(0, 3)) {
+        try {
+          const jobs = await scrapeLinkedIn({ query, location, remoteOnly });
+          const result = await insertNewJobs(jobs);
+          totalFetched += result.fetched;
+          totalInserted += result.inserted;
+          totalDeduped += result.deduped;
+          debug.push(
+            `  LinkedIn "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+          );
+        } catch (err) {
+          errors.push(`LinkedIn error for "${query}": ${String(err)}`);
+        }
       }
     }
   }

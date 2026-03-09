@@ -1,15 +1,13 @@
 /**
- * LinkedIn Easy Apply scraper using Playwright.
- * Requires a valid LinkedIn session cookie (li_at) to be set.
- * Runs in Node.js environment only (not Edge).
+ * LinkedIn job scraper using LinkedIn's public guest jobs API.
+ * No authentication required. Works in serverless environments.
  */
 import { RawJob } from "./types";
 
 export interface LinkedInScrapeParams {
   query: string;
   location?: string;
-  remote?: boolean;
-  sessionCookie: string; // li_at cookie value
+  remoteOnly?: boolean;
   maxJobs?: number;
 }
 
@@ -24,104 +22,107 @@ function extractRequirements(text: string): string[] {
   return TECH_KEYWORDS.filter((kw) => lower.includes(kw));
 }
 
-export async function scrapeLinkedIn(
-  params: LinkedInScrapeParams
-): Promise<RawJob[]> {
-  const { chromium } = await import("playwright");
-  const { query, location = "", remote = false, sessionCookie, maxJobs = 25 } = params;
+function detectRemote(locationText: string): RawJob["remoteType"] {
+  const loc = locationText.toLowerCase();
+  if (loc.includes("remote")) return "REMOTE";
+  if (loc.includes("hybrid")) return "HYBRID";
+  return "ONSITE";
+}
+
+function parseJobs(html: string): RawJob[] {
   const jobs: RawJob[] = [];
 
-  // Build LinkedIn job search URL with Easy Apply filter (f_AL=true)
-  const searchUrl = new URL("https://www.linkedin.com/jobs/search/");
-  searchUrl.searchParams.set("keywords", query);
-  if (location) searchUrl.searchParams.set("location", location);
-  searchUrl.searchParams.set("f_AL", "true"); // Easy Apply only
-  if (remote) searchUrl.searchParams.set("f_WT", "2"); // Remote work type
+  // Each job card is a <li> containing a data-entity-urn or job view link
+  const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/g;
+  let match: RegExpExecArray | null;
 
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  while ((match = liPattern.exec(html)) !== null) {
+    const card = match[1];
 
-  // Set LinkedIn session cookie
-  await context.addCookies([
-    {
-      name: "li_at",
-      value: sessionCookie,
-      domain: ".linkedin.com",
-      path: "/",
-    },
-  ]);
+    // Job ID from URL
+    const idMatch = card.match(/\/jobs\/view\/(\d+)/);
+    if (!idMatch) continue;
+    const externalId = idMatch[1];
 
-  const page = await context.newPage();
-
-  try {
-    await page.goto(searchUrl.toString(), {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-    await page.waitForTimeout(3000);
-
-    // Scroll to load more results
-    for (let i = 0; i < 3; i++) {
-      await page.evaluate(() => window.scrollBy(0, 800));
-      await page.waitForTimeout(1000);
-    }
-
-    const jobCards = await page.$$(
-      '.jobs-search__results-list li, .scaffold-layout__list-container li'
+    // Title — inside an h3 with base-search-card__title class
+    const titleMatch = card.match(
+      /class="[^"]*base-search-card__title[^"]*"[^>]*>([\s\S]*?)<\/h3>/
     );
+    const title = titleMatch
+      ? titleMatch[1].replace(/<[^>]+>/g, "").trim()
+      : "";
 
-    for (const card of jobCards.slice(0, maxJobs)) {
-      try {
-        const title = await card.$eval(
-          '.base-search-card__title, h3',
-          (el) => el.textContent?.trim() ?? ""
-        ).catch(() => "");
+    // Company — inside an h4 / anchor with base-search-card__subtitle class
+    const companyMatch = card.match(
+      /class="[^"]*base-search-card__subtitle[^"]*"[\s\S]*?>([\s\S]*?)<\/(?:h4|a)>/
+    );
+    const company = companyMatch
+      ? companyMatch[1].replace(/<[^>]+>/g, "").trim()
+      : "";
 
-        const company = await card.$eval(
-          '.base-search-card__subtitle, h4',
-          (el) => el.textContent?.trim() ?? ""
-        ).catch(() => "");
+    // Location — inside span with job-search-card__location class
+    const locMatch = card.match(
+      /class="[^"]*job-search-card__location[^"]*"[^>]*>([\s\S]*?)<\/span>/
+    );
+    const locationText = locMatch
+      ? locMatch[1].replace(/<[^>]+>/g, "").trim()
+      : "";
 
-        const locationText = await card.$eval(
-          '.job-search-card__location, .base-search-card__metadata span',
-          (el) => el.textContent?.trim() ?? ""
-        ).catch(() => "");
+    if (!title || !company) continue;
 
-        const linkEl = await card.$("a.base-card__full-link, a[href*='/jobs/']");
-        const applyUrl = linkEl ? await linkEl.getAttribute("href") ?? "" : "";
-        const externalId = applyUrl.match(/\/jobs\/view\/(\d+)/)?.[1] ?? applyUrl;
+    const applyUrl = `https://www.linkedin.com/jobs/view/${externalId}/`;
 
-        if (!title || !company || !applyUrl) continue;
-
-        const remoteType: RawJob["remoteType"] = locationText.toLowerCase().includes("remote")
-          ? "REMOTE"
-          : locationText.toLowerCase().includes("hybrid")
-          ? "HYBRID"
-          : "ONSITE";
-
-        jobs.push({
-          source: "LINKEDIN",
-          externalId,
-          title,
-          company,
-          location: locationText || null,
-          remoteType,
-          salaryMin: null,
-          salaryMax: null,
-          description: "",
-          requirements: [],
-          applyUrl: applyUrl.startsWith("http")
-            ? applyUrl
-            : `https://www.linkedin.com${applyUrl}`,
-          postedAt: null,
-        });
-      } catch {
-        continue;
-      }
-    }
-  } finally {
-    await browser.close();
+    jobs.push({
+      source: "LINKEDIN",
+      externalId,
+      title,
+      company,
+      location: locationText || null,
+      remoteType: detectRemote(locationText),
+      salaryMin: null,
+      salaryMax: null,
+      description: "",
+      requirements: extractRequirements(title),
+      applyUrl,
+      postedAt: null,
+    });
   }
 
   return jobs;
+}
+
+export async function scrapeLinkedIn(
+  params: LinkedInScrapeParams
+): Promise<RawJob[]> {
+  const { query, location = "", remoteOnly = false, maxJobs = 25 } = params;
+
+  const url = new URL(
+    "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+  );
+  url.searchParams.set("keywords", query);
+  if (location) url.searchParams.set("location", location);
+  if (remoteOnly) url.searchParams.set("f_WT", "2"); // 2 = remote
+  url.searchParams.set("f_AL", "true"); // Easy Apply only
+  url.searchParams.set("count", String(maxJobs));
+  url.searchParams.set("start", "0");
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://www.linkedin.com/",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) return [];
+
+    const html = await res.text();
+    return parseJobs(html);
+  } catch {
+    return [];
+  }
 }
