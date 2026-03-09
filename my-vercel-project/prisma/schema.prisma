@@ -20,6 +20,7 @@ enum Source {
   HACKERNEWS
   JOBICY
   WORKINGNOMADS
+  RSS
 }
 
 enum RemoteType {
@@ -101,6 +102,7 @@ model SearchProfile {
   titleIncludes    String[]
   titleExcludes    String[]
   locations        String[]
+  rssFeeds         String[]
   remoteTypes      RemoteType[]
   minSalary        Int?
   maxSalary        Int?

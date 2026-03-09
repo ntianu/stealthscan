@@ -8,6 +8,7 @@ import { scrapeWwr } from "@/lib/scrapers/wwr";
 import { scrapeHackerNews } from "@/lib/scrapers/hn";
 import { scrapeJobicy } from "@/lib/scrapers/jobicy";
 import { scrapeWorkingNomads } from "@/lib/scrapers/workingnomads";
+import { scrapeRssFeeds } from "@/lib/scrapers/rss";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
@@ -268,6 +269,22 @@ export async function runScan(): Promise<ScanResult> {
         );
       } catch (err) {
         errors.push(`HN error: ${String(err)}`);
+      }
+    }
+
+    // RSS feeds — user-provided LinkedIn job alert URLs (or any RSS job feed)
+    if (profile.rssFeeds.length > 0) {
+      try {
+        const raw = await scrapeRssFeeds(profile.rssFeeds);
+        const result = await insertNewJobs(raw);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
+        debug.push(
+          `  RSS (${profile.rssFeeds.length} feed${profile.rssFeeds.length > 1 ? "s" : ""}): fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+        );
+      } catch (err) {
+        errors.push(`RSS error: ${String(err)}`);
       }
     }
   }

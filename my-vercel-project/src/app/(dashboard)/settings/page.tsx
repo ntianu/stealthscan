@@ -4,6 +4,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UserProfileForm } from "@/components/settings/user-profile-form";
 import { LocationPrefsForm } from "@/components/settings/location-prefs-form";
+import { RssFeedsForm } from "@/components/settings/rss-feeds-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -46,6 +47,23 @@ export default async function SettingsPage() {
               <LocationPrefsForm
                 profileId={firstActiveProfile.id}
                 initialLocations={firstActiveProfile.locations}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {firstActiveProfile && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">LinkedIn job alerts / RSS feeds</CardTitle>
+              <CardDescription className="text-xs">
+                Paste LinkedIn job alert RSS URLs to pull jobs directly from your saved searches — bypasses IP restrictions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RssFeedsForm
+                profileId={firstActiveProfile.id}
+                initialFeeds={firstActiveProfile.rssFeeds}
               />
             </CardContent>
           </Card>
