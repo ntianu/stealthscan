@@ -1,15 +1,20 @@
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Topbar } from "@/components/layout/topbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UserProfileForm } from "@/components/settings/user-profile-form";
+import { LocationPrefsForm } from "@/components/settings/location-prefs-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
 
-  const userProfile = await db.userProfile.findUnique({
-    where: { userId: user.id },
-  });
+  const [userProfile, firstActiveProfile] = await Promise.all([
+    db.userProfile.findUnique({ where: { userId: user.id } }),
+    db.searchProfile.findFirst({
+      where: { userId: user.id, active: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
   return (
     <>
@@ -28,6 +33,23 @@ export default async function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        {firstActiveProfile && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">Location preferences</CardTitle>
+              <CardDescription className="text-xs">
+                Jobs outside these locations are filtered from your feed. Leave empty to see all locations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LocationPrefsForm
+                profileId={firstActiveProfile.id}
+                initialLocations={firstActiveProfile.locations}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-1">Professional profile</h2>
@@ -52,22 +74,6 @@ export default async function SettingsPage() {
             }
           />
         </div>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">LinkedIn session</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground space-y-2">
-            <p>
-              To enable LinkedIn Easy Apply scraping, paste your{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-[11px]">li_at</code> cookie value.
-              Stored encrypted, used only for job discovery.
-            </p>
-            <p className="text-amber-500/80">
-              LinkedIn session configuration coming in a future update.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </>
   );

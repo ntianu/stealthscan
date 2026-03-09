@@ -33,18 +33,18 @@ export default async function DiscoverPage() {
     ...new Set(searchProfiles.flatMap(p => p.seniority) as Seniority[]),
   ];
 
-  // Score every job server-side
-  const scoredJobs: ScoredJob[] = jobs.map(job => {
-    const passesAny =
-      searchProfiles.length === 0 ||
-      searchProfiles.some(p => passesHardFilters(job, p));
+  // Only show jobs passing at least one active profile's hard filters.
+  // If no search profiles exist yet, show everything.
+  const visibleJobs =
+    searchProfiles.length === 0
+      ? jobs
+      : jobs.filter((job) => searchProfiles.some((p) => passesHardFilters(job, p)));
 
+  // Score every visible job server-side
+  const scoredJobs: ScoredJob[] = visibleJobs.map(job => {
     const result = userProfile
       ? scoreJob(job, userProfile, preferredSeniorities)
       : { score: 0.5, explanation: "Set up your profile to see fit scores", matchedSkills: [], missedSkills: [] };
-
-    // Soft-penalise jobs that don't pass any profile's hard filters
-    const adjustedScore = passesAny ? result.score : result.score * 0.3;
 
     return {
       id: job.id,
@@ -58,7 +58,7 @@ export default async function DiscoverPage() {
       fetchedAt: job.fetchedAt.toISOString(),
       salaryMin: job.salaryMin,
       salaryMax: job.salaryMax,
-      fitScore: adjustedScore,
+      fitScore: result.score,
       fitExplanation: result.explanation,
       matchedSkills: result.matchedSkills,
       missedSkills: result.missedSkills,

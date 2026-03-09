@@ -4,6 +4,22 @@ import { scrapeGreenhouseMany } from "@/lib/scrapers/greenhouse";
 import { scrapeLeverMany } from "@/lib/scrapers/lever";
 import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
 import { insertNewJobs } from "@/lib/matching/dedup";
+import type { RawJob } from "@/lib/scrapers/types";
+
+/** Keep only jobs whose location overlaps a profile's target locations.
+ *  Remote jobs and jobs with no location string always pass.
+ *  If the profile has no locations configured, all jobs pass. */
+function filterByProfileLocations(jobs: RawJob[], locations: string[]): RawJob[] {
+  if (locations.length === 0) return jobs;
+  return jobs.filter((job) => {
+    if (job.remoteType === "REMOTE") return true;
+    if (!job.location) return true;
+    const jobLoc = job.location.toLowerCase();
+    return locations.some(
+      (loc) => jobLoc.includes(loc.toLowerCase()) || loc.toLowerCase().includes(jobLoc)
+    );
+  });
+}
 
 export interface ScanResult {
   message: string;
@@ -64,7 +80,8 @@ export async function runScan(): Promise<ScanResult> {
     if (profile.sources.includes("WTTJ") || profile.sources.length === 0) {
       for (const query of queries.slice(0, 3)) {
         try {
-          const jobs = await scrapeWttj({ query, location, remoteOnly });
+          const raw = await scrapeWttj({ query, location, remoteOnly });
+          const jobs = filterByProfileLocations(raw, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
@@ -84,9 +101,10 @@ export async function runScan(): Promise<ScanResult> {
       profile.companyWhitelist.length > 0
     ) {
       try {
-        const jobs = await scrapeGreenhouseMany(
+        const raw = await scrapeGreenhouseMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
+        const jobs = filterByProfileLocations(raw, profile.locations);
         const result = await insertNewJobs(jobs);
         totalFetched += result.fetched;
         totalInserted += result.inserted;
@@ -102,9 +120,10 @@ export async function runScan(): Promise<ScanResult> {
       profile.companyWhitelist.length > 0
     ) {
       try {
-        const jobs = await scrapeLeverMany(
+        const raw = await scrapeLeverMany(
           profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
         );
+        const jobs = filterByProfileLocations(raw, profile.locations);
         const result = await insertNewJobs(jobs);
         totalFetched += result.fetched;
         totalInserted += result.inserted;
@@ -118,7 +137,8 @@ export async function runScan(): Promise<ScanResult> {
     if (profile.sources.includes("LINKEDIN") || profile.sources.length === 0) {
       for (const query of queries.slice(0, 3)) {
         try {
-          const jobs = await scrapeLinkedIn({ query, location, remoteOnly });
+          const raw = await scrapeLinkedIn({ query, location, remoteOnly });
+          const jobs = filterByProfileLocations(raw, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
