@@ -5,6 +5,7 @@ import { scrapeLeverMany } from "@/lib/scrapers/lever";
 import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
 import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { scrapeWwr } from "@/lib/scrapers/wwr";
+import { scrapeHackerNews } from "@/lib/scrapers/hn";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
@@ -207,6 +208,28 @@ export async function runScan(): Promise<ScanResult> {
         } catch (err) {
           errors.push(`WWR error for "${query}": ${String(err)}`);
         }
+      }
+    }
+
+    // Hacker News "Who is Hiring?" — monthly thread, all role types
+    // Fetched once per profile (not per query) since the thread is role-agnostic;
+    // filterByQueryRelevance handles per-role narrowing after fetch.
+    if (profile.sources.includes("HACKERNEWS") || profile.sources.length === 0) {
+      try {
+        const raw = await scrapeHackerNews();
+        // Apply relevance filter for the primary query (first target role)
+        const primaryQuery = queries[0] ?? "";
+        const relevant = filterByQueryRelevance(raw, primaryQuery);
+        const jobs = filterByProfileLocations(relevant, profile.locations);
+        const result = await insertNewJobs(jobs);
+        totalFetched += result.fetched;
+        totalInserted += result.inserted;
+        totalDeduped += result.deduped;
+        debug.push(
+          `  HN "${primaryQuery}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+        );
+      } catch (err) {
+        errors.push(`HN error: ${String(err)}`);
       }
     }
   }

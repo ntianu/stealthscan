@@ -17,6 +17,7 @@ enum Source {
   LEVER
   REMOTIVE
   WEWORKREMOTELY
+  HACKERNEWS
 }
 
 enum RemoteType {
