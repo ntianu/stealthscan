@@ -14,7 +14,7 @@ import { Loader2 } from "lucide-react";
 const REMOTE_TYPES = ["REMOTE", "HYBRID", "ONSITE"] as const;
 const SENIORITY_LEVELS = ["INTERN", "JUNIOR", "MID", "SENIOR", "LEAD", "EXECUTIVE"] as const;
 const JOB_TYPES = ["FULLTIME", "PARTTIME", "CONTRACT", "FREELANCE", "INTERNSHIP"] as const;
-const SOURCES = ["LINKEDIN", "INDEED", "WTTJ", "GREENHOUSE", "LEVER"] as const;
+const SOURCES = ["LINKEDIN", "WTTJ", "REMOTIVE", "GREENHOUSE", "LEVER"] as const;
 
 type MultiEnum<T extends string> = T[];
 
@@ -83,7 +83,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
     industries: initialData?.industries ?? [],
     companyBlacklist: initialData?.companyBlacklist ?? [],
     companyWhitelist: initialData?.companyWhitelist ?? [],
-    sources: (initialData?.sources as ProfileFormData["sources"]) ?? ["WTTJ", "GREENHOUSE", "LEVER"],
+    sources: (initialData?.sources as ProfileFormData["sources"]) ?? [],
   });
 
   const [saving, setSaving] = useState(false);

@@ -18,7 +18,7 @@ const updateSchema = z.object({
   industries: z.array(z.string()).optional(),
   companyBlacklist: z.array(z.string()).optional(),
   companyWhitelist: z.array(z.string()).optional(),
-  sources: z.array(z.enum(["LINKEDIN","INDEED","WTTJ","GREENHOUSE","LEVER"])).optional(),
+  sources: z.array(z.enum(["LINKEDIN","INDEED","WTTJ","GREENHOUSE","LEVER","REMOTIVE"])).optional(),
 });
 
 export async function GET(

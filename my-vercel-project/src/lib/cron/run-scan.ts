@@ -7,6 +7,20 @@ import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
+/** Keep only jobs whose title contains at least one meaningful word from the search query.
+ *  Prevents off-topic results (e.g. Remotive returning DevOps jobs for a "Product Manager" query). */
+function filterByQueryRelevance(jobs: RawJob[], query: string): RawJob[] {
+  const words = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
+  if (words.length === 0) return jobs;
+  return jobs.filter((job) => {
+    const title = job.title.toLowerCase();
+    return words.some((w) => title.includes(w));
+  });
+}
+
 /** Keep only jobs whose location overlaps a profile's target locations.
  *  Remote jobs and jobs with no location string always pass.
  *  If the profile has no locations configured, all jobs pass. */
@@ -82,7 +96,8 @@ export async function runScan(): Promise<ScanResult> {
       for (const query of queries.slice(0, 3)) {
         try {
           const raw = await scrapeWttj({ query, location, remoteOnly });
-          const jobs = filterByProfileLocations(raw, profile.locations);
+          const relevant = filterByQueryRelevance(raw, query);
+          const jobs = filterByProfileLocations(relevant, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
@@ -139,7 +154,8 @@ export async function runScan(): Promise<ScanResult> {
       for (const query of queries.slice(0, 3)) {
         try {
           const raw = await scrapeLinkedIn({ query, location, remoteOnly });
-          const jobs = filterByProfileLocations(raw, profile.locations);
+          const relevant = filterByQueryRelevance(raw, query);
+          const jobs = filterByProfileLocations(relevant, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
@@ -158,8 +174,8 @@ export async function runScan(): Promise<ScanResult> {
       for (const query of queries.slice(0, 3)) {
         try {
           const raw = await scrapeRemotive({ query });
-          // Remote jobs bypass location filter, but still apply it for consistency
-          const jobs = filterByProfileLocations(raw, profile.locations);
+          const relevant = filterByQueryRelevance(raw, query);
+          const jobs = filterByProfileLocations(relevant, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
