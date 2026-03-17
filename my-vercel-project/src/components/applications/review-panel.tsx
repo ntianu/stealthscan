@@ -19,7 +19,7 @@ interface ApplyKit {
   resumeUrl: string | null;
   answers: Record<string, string>;
   applyUrl: string;
-  instructions: string;
+  instructions: string[];
 }
 
 interface VerifierReport {
@@ -84,7 +84,11 @@ function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void })
             <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
           </div>
 
-          <p className="text-sm text-muted-foreground">{kit.instructions}</p>
+          <ol className="space-y-1">
+            {kit.instructions.map((step, i) => (
+              <li key={i} className="text-sm text-muted-foreground">{step}</li>
+            ))}
+          </ol>
 
           <div className="flex gap-3">
             <a href={kit.applyUrl} target="_blank" rel="noopener noreferrer">

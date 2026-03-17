@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { scrapeWttj } from "@/lib/scrapers/wttj";
 import { scrapeGreenhouseMany } from "@/lib/scrapers/greenhouse";
 import { scrapeLeverMany } from "@/lib/scrapers/lever";
-import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
+import { scrapeLinkedInApify } from "@/lib/scrapers/linkedin-apify";
+import { scrapeBuiltInApify } from "@/lib/scrapers/builtin-apify";
 import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { scrapeWwr } from "@/lib/scrapers/wwr";
 import { scrapeHackerNews } from "@/lib/scrapers/hn";
@@ -154,22 +155,57 @@ export async function runScan(): Promise<ScanResult> {
       }
     }
 
-    // LinkedIn (public Easy Apply listings)
+    // LinkedIn via Apify (harvestapi/linkedin-job-search — reliable, no cookies needed)
     if (profile.sources.includes("LINKEDIN") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 3)) {
+      if (!process.env.APIFY_API_TOKEN) {
+        debug.push("  LinkedIn: skipped (APIFY_API_TOKEN not set)");
+      } else {
         try {
-          const raw = await scrapeLinkedIn({ query, location, remoteOnly });
-          const relevant = filterByQueryRelevance(raw, query);
+          const raw = await scrapeLinkedInApify({
+            queries: queries.slice(0, 3),
+            locations: profile.locations,
+            maxItemsPerQuery: 25,
+            postedLimit: "week",
+          });
+          const relevant = filterByQueryRelevance(raw, queries[0] ?? "");
           const jobs = filterByProfileLocations(relevant, profile.locations);
           const result = await insertNewJobs(jobs);
           totalFetched += result.fetched;
           totalInserted += result.inserted;
           totalDeduped += result.deduped;
           debug.push(
-            `  LinkedIn "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+            `  LinkedIn (Apify): fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
           );
         } catch (err) {
-          errors.push(`LinkedIn error for "${query}": ${String(err)}`);
+          errors.push(`LinkedIn (Apify) error: ${String(err)}`);
+        }
+      }
+    }
+
+    // BuiltIn via Apify (shahidirfan/BuiltIn-Jobs-Scraper — strong for NYC / major US markets)
+    if (profile.sources.includes("BUILTIN") || profile.sources.length === 0) {
+      if (!process.env.APIFY_API_TOKEN) {
+        debug.push("  BuiltIn: skipped (APIFY_API_TOKEN not set)");
+      } else {
+        try {
+          const primaryQuery = queries[0] ?? "";
+          const primaryLocation = profile.locations[0];
+          const raw = await scrapeBuiltInApify({
+            keyword: primaryQuery,
+            location: primaryLocation,
+            maxResults: 30,
+          });
+          const relevant = filterByQueryRelevance(raw, primaryQuery);
+          const jobs = filterByProfileLocations(relevant, profile.locations);
+          const result = await insertNewJobs(jobs);
+          totalFetched += result.fetched;
+          totalInserted += result.inserted;
+          totalDeduped += result.deduped;
+          debug.push(
+            `  BuiltIn (Apify): fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+          );
+        } catch (err) {
+          errors.push(`BuiltIn (Apify) error: ${String(err)}`);
         }
       }
     }
@@ -275,7 +311,7 @@ export async function runScan(): Promise<ScanResult> {
     // RSS feeds — user-provided LinkedIn job alert URLs (or any RSS job feed)
     if (profile.rssFeeds.length > 0) {
       try {
-        const raw = await scrapeRssFeeds(profile.rssFeeds);
+        const { jobs: raw, feedErrors } = await scrapeRssFeeds(profile.rssFeeds);
         const result = await insertNewJobs(raw);
         totalFetched += result.fetched;
         totalInserted += result.inserted;
@@ -283,6 +319,7 @@ export async function runScan(): Promise<ScanResult> {
         debug.push(
           `  RSS (${profile.rssFeeds.length} feed${profile.rssFeeds.length > 1 ? "s" : ""}): fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
         );
+        for (const fe of feedErrors) errors.push(`RSS feed error: ${fe}`);
       } catch (err) {
         errors.push(`RSS error: ${String(err)}`);
       }

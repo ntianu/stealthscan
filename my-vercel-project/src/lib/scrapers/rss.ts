@@ -90,7 +90,7 @@ export async function fetchRssFeed(feedUrl: string): Promise<RawJob[]> {
       },
       cache: "no-store",
     });
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const xml = await res.text();
     const itemBlocks = xml.split(/<item[\s>]/).slice(1);
@@ -137,9 +137,25 @@ export async function fetchRssFeed(feedUrl: string): Promise<RawJob[]> {
   }
 }
 
-/** Fetch all RSS feeds for a profile and return combined RawJob[]. */
-export async function scrapeRssFeeds(feedUrls: string[]): Promise<RawJob[]> {
-  if (!feedUrls.length) return [];
-  const results = await Promise.all(feedUrls.map(fetchRssFeed));
-  return results.flat();
+/** Fetch all RSS feeds for a profile and return combined RawJob[].
+ *  Errors from individual feeds are thrown so the caller can surface them. */
+export async function scrapeRssFeeds(
+  feedUrls: string[]
+): Promise<{ jobs: RawJob[]; feedErrors: string[] }> {
+  if (!feedUrls.length) return { jobs: [], feedErrors: [] };
+
+  const settled = await Promise.allSettled(feedUrls.map(fetchRssFeed));
+  const jobs: RawJob[] = [];
+  const feedErrors: string[] = [];
+
+  settled.forEach((result, i) => {
+    if (result.status === "fulfilled") {
+      jobs.push(...result.value);
+    } else {
+      const short = feedUrls[i].replace(/[?#].*$/, "").slice(-60);
+      feedErrors.push(`Feed …${short}: ${String(result.reason)}`);
+    }
+  });
+
+  return { jobs, feedErrors };
 }

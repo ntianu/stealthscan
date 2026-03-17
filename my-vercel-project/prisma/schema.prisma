@@ -21,6 +21,7 @@ enum Source {
   JOBICY
   WORKINGNOMADS
   RSS
+  BUILTIN
 }
 
 enum RemoteType {
