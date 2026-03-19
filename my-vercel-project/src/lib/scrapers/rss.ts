@@ -80,61 +80,58 @@ function extractId(link: string, guid: string): string {
   return parts[parts.length - 1] || link || guid;
 }
 
-/** Fetch and parse a single RSS feed URL into RawJob[]. */
+/** Fetch and parse a single RSS feed URL into RawJob[].
+ *  Throws on HTTP errors so scrapeRssFeeds can surface them in feedErrors. */
 export async function fetchRssFeed(feedUrl: string): Promise<RawJob[]> {
-  try {
-    const res = await fetch(feedUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; JobScanBot/1.0)",
-        Accept: "application/rss+xml, application/xml, text/xml, */*",
-      },
-      cache: "no-store",
+  const res = await fetch(feedUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; JobScanBot/1.0)",
+      Accept: "application/rss+xml, application/xml, text/xml, */*",
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const xml = await res.text();
+  const itemBlocks = xml.split(/<item[\s>]/).slice(1);
+  if (!itemBlocks.length) return [];
+
+  const jobs: RawJob[] = [];
+  for (const block of itemBlocks) {
+    const rawTitle = extractText("title", block);
+    if (!rawTitle) continue;
+
+    const { title, company } = parseJobTitle(rawTitle);
+    if (!title || title.length > 200) continue;
+
+    const link = extractText("link", block) ||
+      block.match(/<link>([^<]+)<\/link>/)?.[1]?.trim() || "";
+    const guid = extractText("guid", block);
+    const description = stripHtml(extractText("description", block));
+    const pubDate = extractText("pubDate", block) || extractText("published", block);
+    const externalId = extractId(link, guid);
+    const applyUrl = link || guid;
+
+    if (!applyUrl) continue;
+
+    const remoteType = detectRemote(rawTitle + " " + description);
+
+    jobs.push({
+      source: "RSS" as const,
+      externalId,
+      title,
+      company,
+      location: null, // RSS rarely includes structured location
+      remoteType,
+      salaryMin: null,
+      salaryMax: null,
+      description,
+      requirements: extractRequirements(description),
+      applyUrl,
+      postedAt: pubDate ? new Date(pubDate) : null,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const xml = await res.text();
-    const itemBlocks = xml.split(/<item[\s>]/).slice(1);
-    if (!itemBlocks.length) return [];
-
-    const jobs: RawJob[] = [];
-    for (const block of itemBlocks) {
-      const rawTitle = extractText("title", block);
-      if (!rawTitle) continue;
-
-      const { title, company } = parseJobTitle(rawTitle);
-      if (!title || title.length > 200) continue;
-
-      const link = extractText("link", block) ||
-        block.match(/<link>([^<]+)<\/link>/)?.[1]?.trim() || "";
-      const guid = extractText("guid", block);
-      const description = stripHtml(extractText("description", block));
-      const pubDate = extractText("pubDate", block) || extractText("published", block);
-      const externalId = extractId(link, guid);
-      const applyUrl = link || guid;
-
-      if (!applyUrl) continue;
-
-      const remoteType = detectRemote(rawTitle + " " + description);
-
-      jobs.push({
-        source: "RSS" as const,
-        externalId,
-        title,
-        company,
-        location: null, // RSS rarely includes structured location
-        remoteType,
-        salaryMin: null,
-        salaryMax: null,
-        description,
-        requirements: extractRequirements(description),
-        applyUrl,
-        postedAt: pubDate ? new Date(pubDate) : null,
-      });
-    }
-    return jobs;
-  } catch {
-    return [];
   }
+  return jobs;
 }
 
 /** Fetch all RSS feeds for a profile and return combined RawJob[].

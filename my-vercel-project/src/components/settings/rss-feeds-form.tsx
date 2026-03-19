@@ -47,6 +47,7 @@ export function RssFeedsForm({ profileId, initialFeeds }: RssFeedsFormProps) {
           onChange={setFeeds}
           placeholder="Paste a LinkedIn alert RSS URL and press Enter…"
           className="mt-1.5"
+          lowercase={false}
         />
         <p className="mt-1.5 text-[11px] text-muted-foreground">
           In LinkedIn, go to a job search → set your filters → click &ldquo;Create alert&rdquo; →
