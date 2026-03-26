@@ -148,7 +148,7 @@ export async function scrapeBuiltInApify(params: {
         salaryMin,
         salaryMax,
         description: item.description ?? item.descriptionText ?? "",
-        requirements: extractRequirements(item),
+        requirements: extractRequirements(item.description ?? item.descriptionText ?? ""),
         applyUrl,
         postedAt: getPostedAt(item),
       });
