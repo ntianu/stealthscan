@@ -6,6 +6,7 @@
  * Actor docs: https://apify.com/shahidirfan/BuiltIn-Jobs-Scraper
  */
 import type { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const ACTOR_ID = "shahidirfan~BuiltIn-Jobs-Scraper";
 
@@ -84,21 +85,6 @@ function parseSalary(raw: string | undefined): { min: number | null; max: number
   return { min: Math.min(...nums), max: Math.max(...nums) };
 }
 
-function extractRequirements(j: ApifyBuiltInJob): string[] {
-  // Use skills field if available, otherwise fall back to keyword extraction
-  if (j.skills && j.skills.length > 0) {
-    return j.skills.map((s) => s.toLowerCase()).slice(0, 15);
-  }
-  const KEYWORDS = [
-    "python","javascript","typescript","react","node.js","sql","postgresql",
-    "mongodb","docker","kubernetes","aws","gcp","azure","java","go","rust",
-    "machine learning","data science","agile","product management","figma",
-    "swift","kotlin","ruby","php","graphql","redis","terraform","ci/cd",
-    "llm","ai","ml","analytics","tableau","looker","dbt","snowflake",
-  ];
-  const lower = (j.description ?? j.descriptionText ?? "").toLowerCase();
-  return KEYWORDS.filter((kw) => lower.includes(kw));
-}
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 

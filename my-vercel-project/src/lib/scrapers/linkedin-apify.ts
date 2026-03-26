@@ -5,6 +5,7 @@
  * Actor docs: https://apify.com/harvestapi/linkedin-job-search
  */
 import type { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const ACTOR_ID = "harvestapi~linkedin-job-search";
 
@@ -92,16 +93,60 @@ function parseSalary(raw: string | undefined): { min: number | null; max: number
   return { min: Math.min(...nums), max: Math.max(...nums) };
 }
 
-function extractRequirements(description: string): string[] {
-  const KEYWORDS = [
-    "python","javascript","typescript","react","node.js","sql","postgresql",
-    "mongodb","docker","kubernetes","aws","gcp","azure","java","go","rust",
-    "machine learning","data science","agile","product management","figma",
-    "swift","kotlin","ruby","php","graphql","redis","terraform","ci/cd",
-    "llm","ai","ml","analytics","sql","tableau","looker","dbt","snowflake",
-  ];
-  const lower = description.toLowerCase();
-  return KEYWORDS.filter((kw) => lower.includes(kw));
+// ─── LinkedIn search URL parser ───────────────────────────────────────────────
+
+/** f_TPR values LinkedIn uses (seconds since epoch offset = duration in seconds). */
+function tprToPostedLimit(fTPR: string): "1h" | "24h" | "week" | "month" {
+  const seconds = parseInt(fTPR.replace(/^r/, ""), 10);
+  if (isNaN(seconds)) return "week";
+  if (seconds <= 3600) return "1h";
+  if (seconds <= 86400) return "24h";
+  if (seconds <= 604800) return "week";
+  return "month";
+}
+
+export interface LinkedInSearchParams {
+  jobTitles: string[];
+  locations: string[];
+  postedLimit?: "1h" | "24h" | "week" | "month";
+  workplaceType?: string[];
+  employmentType?: string[];
+  experienceLevel?: string[];
+}
+
+/** Parse a LinkedIn jobs search URL into Apify actor input params. */
+export function parseLinkedInSearchUrl(url: string): LinkedInSearchParams | null {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes("linkedin.com")) return null;
+
+    const keywords = parsed.searchParams.get("keywords") ?? "";
+    const location = parsed.searchParams.get("location") ?? "";
+    const fTPR = parsed.searchParams.get("f_TPR");
+    const fWT = parsed.searchParams.get("f_WT");
+    const fJT = parsed.searchParams.get("f_JT");
+    const fE = parsed.searchParams.get("f_E");
+
+    const wtMap: Record<string, string> = { "1": "office", "2": "remote", "3": "hybrid" };
+    const jtMap: Record<string, string> = {
+      F: "full-time", P: "part-time", C: "contract", T: "temporary", I: "internship",
+    };
+    const elMap: Record<string, string> = {
+      "1": "internship", "2": "entry", "3": "associate",
+      "4": "mid-senior", "5": "director", "6": "executive",
+    };
+
+    return {
+      jobTitles: keywords ? [keywords] : [],
+      locations: location ? [location] : [],
+      postedLimit: fTPR ? tprToPostedLimit(fTPR) : undefined,
+      workplaceType: fWT ? fWT.split(",").map((v) => wtMap[v]).filter(Boolean) : undefined,
+      employmentType: fJT ? fJT.split(",").map((v) => jtMap[v]).filter(Boolean) : undefined,
+      experienceLevel: fE ? fE.split(",").map((v) => elMap[v]).filter(Boolean) : undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
@@ -111,19 +156,33 @@ export async function scrapeLinkedInApify(params: {
   locations: string[];
   maxItemsPerQuery?: number;
   postedLimit?: "1h" | "24h" | "week" | "month";
+  workplaceType?: string[];
+  employmentType?: string[];
+  experienceLevel?: string[];
 }): Promise<RawJob[]> {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) throw new Error("APIFY_API_TOKEN env var not set");
 
-  const { queries, locations, maxItemsPerQuery = 25, postedLimit = "week" } = params;
+  const {
+    queries,
+    locations,
+    maxItemsPerQuery = 25,
+    postedLimit = "week",
+    workplaceType,
+    employmentType,
+    experienceLevel,
+  } = params;
 
-  const input = {
-    jobTitles: queries.slice(0, 5),  // cap to avoid excessive costs
+  const input: Record<string, unknown> = {
+    jobTitles: queries.slice(0, 5),
     locations: locations.length > 0 ? locations : ["United States"],
     maxItems: maxItemsPerQuery,
     postedLimit,
     sortBy: "date",
   };
+  if (workplaceType?.length) input.workplaceType = workplaceType;
+  if (employmentType?.length) input.employmentType = employmentType;
+  if (experienceLevel?.length) input.experienceLevel = experienceLevel;
 
   // run-sync-get-dataset-items blocks until the actor completes (max 300s)
   const controller = new AbortController();

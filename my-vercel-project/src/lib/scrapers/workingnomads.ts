@@ -13,14 +13,6 @@ const TECH_KEYWORDS = [
   "ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(text: string, tags: string[]): string[] {
-  const lower = text.toLowerCase();
-  const fromDesc = TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-  const fromTags = tags
-    .map((t) => t.toLowerCase())
-    .filter((t) => TECH_KEYWORDS.includes(t));
-  return [...new Set([...fromDesc, ...fromTags])];
-}
 
 interface WNJob {
   url: string;

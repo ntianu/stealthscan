@@ -13,14 +13,6 @@ const TECH_KEYWORDS = [
   "ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(html: string, industry: string[]): string[] {
-  const lower = html.toLowerCase();
-  const fromDesc = TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-  const fromIndustry = industry
-    .map((i) => i.toLowerCase())
-    .filter((i) => TECH_KEYWORDS.includes(i));
-  return [...new Set([...fromDesc, ...fromIndustry])];
-}
 
 function stripHtml(html: string): string {
   return html

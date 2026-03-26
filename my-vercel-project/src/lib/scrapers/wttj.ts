@@ -43,17 +43,6 @@ function parseRemote(remote?: string): RawJob["remoteType"] {
   return null;
 }
 
-function extractRequirements(text: string): string[] {
-  const techKeywords = [
-    "python","javascript","typescript","react","next.js","node.js","graphql",
-    "sql","postgresql","mysql","mongodb","redis","docker","kubernetes","aws",
-    "gcp","azure","terraform","ci/cd","git","java","go","rust","ruby","php",
-    "machine learning","data science","nlp","llm","product management","agile",
-    "scrum","figma","sketch","swift","kotlin","flutter","react native",
-  ];
-  const lower = text.toLowerCase();
-  return techKeywords.filter((kw) => lower.includes(kw));
-}
 
 function getLocation(hit: AlgoliaHit): string | null {
   const off = hit.office ?? hit.offices?.[0];

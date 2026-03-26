@@ -17,10 +17,6 @@ const TECH_KEYWORDS = [
   "kotlin","ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(text: string): string[] {
-  const lower = text.toLowerCase();
-  return TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-}
 
 /** Strip HTML tags and decode common entities. */
 function cleanHtml(html: string): string {

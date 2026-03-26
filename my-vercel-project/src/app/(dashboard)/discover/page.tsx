@@ -61,7 +61,7 @@ export default async function DiscoverPage() {
   // Score every visible job server-side
   const scoredJobs: ScoredJob[] = visibleJobs.map(job => {
     const result = userProfile
-      ? scoreJob(job, userProfile, preferredSeniorities)
+      ? scoreJob(job, userProfile, preferredSeniorities, targetRoles)
       : { score: 0.5, explanation: "Set up your profile to see fit scores", matchedSkills: [], missedSkills: [] };
 
     return {

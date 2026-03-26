@@ -37,10 +37,6 @@ function extractText(tag: string, xml: string): string {
   return m ? m[1].trim() : "";
 }
 
-function extractRequirements(text: string): string[] {
-  const lower = text.toLowerCase();
-  return TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-}
 
 /** Parse "Category: Job Title at Company Name" → { title, company } */
 function parseTitle(raw: string): { title: string; company: string } {
