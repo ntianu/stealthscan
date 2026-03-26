@@ -14,6 +14,23 @@ const ACTOR_ID = "harvestapi~linkedin-job-search";
 interface ApifyCompany {
   name?: string;
   url?: string;
+  linkedinUrl?: string;
+}
+
+interface ApifyLinkedInLocation {
+  linkedinText?: string;
+  parsed?: { text?: string; city?: string; state?: string; country?: string };
+}
+
+interface ApifyApplyMethod {
+  easyApplyUrl?: string;
+  companyApplyUrl?: string;
+}
+
+interface ApifySalary {
+  text?: string | null;
+  min?: number | null;
+  max?: number | null;
 }
 
 interface ApifyLinkedInJob {
@@ -23,17 +40,23 @@ interface ApifyLinkedInJob {
   jobTitle?: string;
   company?: ApifyCompany | string;
   companyName?: string;
-  location?: string;
+  // location is an object in the actual API response
+  location?: ApifyLinkedInLocation | string | null;
   postedAt?: string;
   publishedAt?: string;
   postedDate?: string;
-  salary?: string;
+  // salary is a nested object in the actual API response
+  salary?: ApifySalary | string | null;
   salaryText?: string;
   workplaceType?: string;
   remoteType?: string;
   employmentType?: string;
   description?: string;
   descriptionText?: string;
+  // actual URL fields returned by harvestapi/linkedin-job-search
+  linkedinUrl?: string;
+  easyApplyUrl?: string;
+  applyMethod?: ApifyApplyMethod;
   url?: string;
   link?: string;
   jobUrl?: string;
@@ -53,8 +76,35 @@ function getCompany(j: ApifyLinkedInJob): string {
   return (j.companyName ?? "Unknown").trim();
 }
 
+/** Return the best apply URL. Prefer external apply URL, fall back to LinkedIn URL. */
 function getUrl(j: ApifyLinkedInJob): string {
-  return j.url ?? j.link ?? j.jobUrl ?? j.applyUrl ?? "";
+  return (
+    j.applyMethod?.companyApplyUrl ??
+    j.applyMethod?.easyApplyUrl ??
+    j.easyApplyUrl ??
+    j.url ??
+    j.link ??
+    j.jobUrl ??
+    j.applyUrl ??
+    j.linkedinUrl ??
+    ""
+  );
+}
+
+/** Extract a human-readable location string from the nested location object. */
+function getLocation(j: ApifyLinkedInJob): string | null {
+  const loc = j.location;
+  if (!loc) return null;
+  if (typeof loc === "string") return loc || null;
+  return loc.linkedinText ?? loc.parsed?.text ?? null;
+}
+
+/** Extract salary text from nested salary object or plain string field. */
+function getSalaryText(j: ApifyLinkedInJob): string | undefined {
+  const s = j.salary;
+  if (!s) return j.salaryText;
+  if (typeof s === "string") return s || undefined;
+  return s.text ?? j.salaryText;
 }
 
 function getExternalId(j: ApifyLinkedInJob): string {
@@ -166,7 +216,7 @@ export async function scrapeLinkedInApify(params: {
   const {
     queries,
     locations,
-    maxItemsPerQuery = 25,
+    maxItemsPerQuery = 50,
     postedLimit = "week",
     workplaceType,
     employmentType,
@@ -211,19 +261,18 @@ export async function scrapeLinkedInApify(params: {
     for (const item of items) {
       const title = getTitle(item);
       if (!title || title.length > 200) continue;
-      const applyUrl = getUrl(item);
+      // Use linkedinUrl as guaranteed fallback — every item has it
+      const applyUrl = getUrl(item) || item.linkedinUrl || "";
       if (!applyUrl) continue;
 
-      const { min: salaryMin, max: salaryMax } = parseSalary(
-        item.salary ?? item.salaryText
-      );
+      const { min: salaryMin, max: salaryMax } = parseSalary(getSalaryText(item));
 
       jobs.push({
         source: "LINKEDIN",
         externalId: getExternalId(item),
         title,
         company: getCompany(item),
-        location: item.location ?? null,
+        location: getLocation(item),
         remoteType: parseRemote(item),
         salaryMin,
         salaryMax,
