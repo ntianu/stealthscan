@@ -75,7 +75,7 @@ function buildScraperTasks(
 
   // WTTJ — one task per query (max 3)
   if (noSourceFilter || profile.sources.includes("WTTJ")) {
-    for (const query of queries.slice(0, 3)) {
+    for (const query of queries.slice(0, 8)) {
       tasks.push({
         name: `WTTJ "${query}"`,
         query,
@@ -116,9 +116,9 @@ function buildScraperTasks(
         query: queries[0] ?? "",
         fn: () =>
           scrapeLinkedInApify({
-            queries: queries.slice(0, 3),
+            queries: queries.slice(0, 5),
             locations: profile.locations,
-            maxItemsPerQuery: 25,
+            maxItemsPerQuery: 50,
             postedLimit: "week",
           }),
       });
@@ -138,7 +138,7 @@ function buildScraperTasks(
           scrapeLinkedInApify({
             queries: parsed.jobTitles,
             locations: parsed.locations.length > 0 ? parsed.locations : profile.locations,
-            maxItemsPerQuery: 25,
+            maxItemsPerQuery: 50,
             postedLimit: parsed.postedLimit ?? "week",
             workplaceType: parsed.workplaceType,
             employmentType: parsed.employmentType,
@@ -170,7 +170,7 @@ function buildScraperTasks(
 
   // RemoteOK — one per query
   if (noSourceFilter || profile.sources.includes("REMOTIVE")) {
-    for (const query of queries.slice(0, 3)) {
+    for (const query of queries.slice(0, 8)) {
       tasks.push({
         name: `RemoteOK "${query}"`,
         query,
@@ -181,7 +181,7 @@ function buildScraperTasks(
 
   // We Work Remotely — one per query
   if (noSourceFilter || profile.sources.includes("WEWORKREMOTELY")) {
-    for (const query of queries.slice(0, 3)) {
+    for (const query of queries.slice(0, 8)) {
       tasks.push({
         name: `WWR "${query}"`,
         query,
@@ -255,7 +255,7 @@ export async function runScan(): Promise<ScanResult> {
         ? profile.titleIncludes
         : [profile.name];
 
-    debug.push(`Profile "${profile.name}" → queries: [${queries.slice(0, 3).join(", ")}]`);
+    debug.push(`Profile "${profile.name}" → queries: [${queries.slice(0, 8).join(", ")}]`);
 
     const location = profile.locations[0] ?? "";
     const remoteOnly =

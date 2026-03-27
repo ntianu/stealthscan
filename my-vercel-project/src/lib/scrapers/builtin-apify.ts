@@ -106,11 +106,11 @@ export async function scrapeBuiltInApify(params: {
   if (location) input.location = location;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60_000);
+  const timer = setTimeout(() => controller.abort(), 100_000);
 
   try {
     const res = await fetch(
-      `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${token}&timeout=55`,
+      `https://api.apify.com/v2/acts/${ACTOR_ID}/run-sync-get-dataset-items?token=${token}&timeout=90`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
