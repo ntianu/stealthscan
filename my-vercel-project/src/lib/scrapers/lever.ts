@@ -1,4 +1,5 @@
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 interface LeverJob {
   id: string;

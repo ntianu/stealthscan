@@ -7,6 +7,7 @@
  * Covers all role types: engineering, product, design, marketing, etc.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const ALGOLIA_BASE = "https://hn.algolia.com/api/v1";
 

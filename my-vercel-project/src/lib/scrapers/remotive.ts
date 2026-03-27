@@ -4,6 +4,7 @@
  * Source enum is kept as REMOTIVE to avoid a schema migration.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const REMOTEOK_API = "https://remoteok.com/api";
 

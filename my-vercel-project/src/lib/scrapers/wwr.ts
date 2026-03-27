@@ -4,6 +4,7 @@
  * No authentication required.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const BASE = "https://weworkremotely.com/categories";
 

@@ -3,6 +3,7 @@
  * Has salary data, industry tags, and non-engineering categories (design, marketing, etc.).
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const JOBICY_API = "https://jobicy.com/api/v2/remote-jobs";
 

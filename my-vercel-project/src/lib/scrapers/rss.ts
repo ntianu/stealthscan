@@ -10,6 +10,7 @@
  * User provides RSS URLs from: LinkedIn job alerts, Google alerts, etc.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const TECH_KEYWORDS = [
   "python","javascript","typescript","react","node.js","sql","postgresql",

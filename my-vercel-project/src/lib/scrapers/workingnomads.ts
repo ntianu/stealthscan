@@ -3,6 +3,7 @@
  * Good for non-engineering roles (product, design, marketing).
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const WN_API = "https://www.workingnomads.com/api/exposed_jobs/";
 

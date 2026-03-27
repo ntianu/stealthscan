@@ -1,4 +1,5 @@
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 // WTTJ uses Algolia for job search (public read-only credentials)
 const ALGOLIA_APP_ID = "CSEKHVMS53";
