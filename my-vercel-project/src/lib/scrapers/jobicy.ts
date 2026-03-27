@@ -87,7 +87,7 @@ export async function scrapeJobicy(): Promise<RawJob[]> {
         salaryMin,
         salaryMax,
         description,
-        requirements: extractRequirements(job.jobDescription, job.jobIndustry),
+        requirements: extractRequirements(job.jobDescription + " " + (job.jobIndustry ?? "")),
         applyUrl: job.url,
         postedAt: job.pubDate ? new Date(job.pubDate) : null,
       };
