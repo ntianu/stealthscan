@@ -94,7 +94,7 @@ export async function scrapeRemotive(params: {
           salaryMin,
           salaryMax,
           description,
-          requirements: extractRequirements(description, tags),
+          requirements: extractRequirements(description + " " + (Array.isArray(tags) ? tags.join(" ") : "")),
           applyUrl,
           postedAt,
         };

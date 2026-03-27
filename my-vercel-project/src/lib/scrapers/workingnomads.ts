@@ -56,7 +56,7 @@ export async function scrapeWorkingNomads(): Promise<RawJob[]> {
         salaryMin: null,
         salaryMax: null,
         description: job.description,
-        requirements: extractRequirements(job.description, job.tags ?? []),
+        requirements: extractRequirements(job.description + " " + (job.tags ?? []).join(" ")),
         applyUrl: job.url,
         postedAt: job.pub_date ? new Date(job.pub_date) : null,
       };
