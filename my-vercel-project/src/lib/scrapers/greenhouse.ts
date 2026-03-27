@@ -1,5 +1,4 @@
 import { RawJob } from "./types";
-import { extractRequirements } from "@/lib/matching/scorer";
 
 interface GhJob {
   id: number;

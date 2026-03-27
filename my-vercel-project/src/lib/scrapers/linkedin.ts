@@ -3,7 +3,6 @@
  * No authentication required. Works in serverless environments.
  */
 import { RawJob } from "./types";
-import { extractRequirements } from "@/lib/matching/scorer";
 
 export interface LinkedInScrapeParams {
   query: string;

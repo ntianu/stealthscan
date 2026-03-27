@@ -4,7 +4,6 @@
  * (not on Vercel Edge). Use this in Node.js API routes or scripts only.
  */
 import { RawJob } from "./types";
-import { extractRequirements } from "@/lib/matching/scorer";
 
 const TECH_KEYWORDS = [
   "python","javascript","typescript","react","node.js","sql","postgresql",
