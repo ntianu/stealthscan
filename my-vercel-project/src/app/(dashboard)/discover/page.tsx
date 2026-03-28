@@ -5,6 +5,7 @@ import { JobFeed, type ScoredJob } from "@/components/jobs/job-feed";
 import { scoreJob } from "@/lib/matching/scorer";
 import { passesHardFilters } from "@/lib/matching/hard-filter";
 import { ScanButton } from "@/components/discover/scan-button";
+import { AddJobDialog } from "@/components/discover/add-job-dialog";
 import type { Seniority } from "@prisma/client";
 
 export default async function DiscoverPage() {
@@ -88,7 +89,7 @@ export default async function DiscoverPage() {
 
   return (
     <>
-      <Topbar title="Discover" description="Browse and score matching jobs" action={<ScanButton />} />
+      <Topbar title="Discover" description="Browse and score matching jobs" action={<div className="flex items-center gap-2"><AddJobDialog /><ScanButton /></div>} />
       <div className="p-6">
         <JobFeed
           initialJobs={scoredJobs}

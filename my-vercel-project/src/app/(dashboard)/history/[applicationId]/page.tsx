@@ -12,6 +12,7 @@ import {
   XCircle, FileText, Clock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { TrackingPanel } from "@/components/applications/tracking-panel";
 
 interface Props {
   params: Promise<{ applicationId: string }>;
@@ -171,6 +172,21 @@ export default async function HistoryDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         )}
+
+        {/* Tracking */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Tracking &amp; Notes</CardTitle></CardHeader>
+          <CardContent>
+            <TrackingPanel
+              applicationId={application.id}
+              initialStatus={application.status}
+              initialNotes={(application as { notes?: string | null }).notes ?? null}
+              initialInterviewDate={
+                (application as { interviewDate?: Date | null }).interviewDate?.toISOString() ?? null
+              }
+            />
+          </CardContent>
+        </Card>
       </div>
     </>
   );

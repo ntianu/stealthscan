@@ -32,7 +32,7 @@ export interface ScoredJob {
   applicationId: string | null; // existing application if already queued
 }
 
-const SOURCES = ["LINKEDIN", "BUILTIN", "WTTJ", "GREENHOUSE", "LEVER", "REMOTIVE", "RSS"] as const;
+const SOURCES = ["LINKEDIN", "BUILTIN", "WTTJ", "GREENHOUSE", "LEVER", "REMOTIVE", "RSS", "MANUAL"] as const;
 const REMOTE_TYPES = ["REMOTE", "HYBRID", "ONSITE"] as const;
 
 function FitRing({ score }: { score: number }) {
