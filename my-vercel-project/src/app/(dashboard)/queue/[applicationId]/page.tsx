@@ -1,11 +1,8 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Topbar } from "@/components/layout/topbar";
 import { ReviewPanel } from "@/components/applications/review-panel";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
 
 interface Props {
   params: Promise<{ applicationId: string }>;
@@ -15,26 +12,31 @@ export default async function ApplicationReviewPage({ params }: Props) {
   const user = await requireUser();
   const { applicationId } = await params;
 
-  const [application, userProfile] = await Promise.all([
+  const [application, userProfile, allQueued] = await Promise.all([
     db.application.findUnique({
       where: { id: applicationId, userId: user.id },
       include: { job: true, resume: true },
     }),
     db.userProfile.findUnique({ where: { userId: user.id } }),
+    db.application.findMany({
+      where: { userId: user.id, status: "PREPARED" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
   ]);
 
   if (!application) notFound();
 
+  // Determine prev/next within the PREPARED queue (ordered newest-first)
+  const queueIds = allQueued.map((a: { id: string }) => a.id);
+  const pos = queueIds.indexOf(applicationId);
+  const prevId = pos > 0 ? queueIds[pos - 1] : null;
+  const nextId = pos < queueIds.length - 1 ? queueIds[pos + 1] : null;
+
   return (
     <>
-      <Topbar title="Review Application" description="Inspect and approve this application" />
+      <Topbar title="Review Application" description={`${application.job.title} · ${application.job.company}`} />
       <div className="p-6 max-w-3xl">
-        <Link href="/queue">
-          <Button variant="ghost" size="sm" className="mb-4 gap-1 text-muted-foreground hover:text-foreground">
-            <ChevronLeft className="h-3.5 w-3.5" /> Back to Queue
-          </Button>
-        </Link>
-
         <ReviewPanel
           applicationId={application.id}
           job={{
@@ -62,6 +64,10 @@ export default async function ApplicationReviewPage({ params }: Props) {
           resume={application.resume ? { name: application.resume.name, fileUrl: application.resume.fileUrl } : null}
           status={application.status}
           hasProfile={!!userProfile}
+          prevId={prevId}
+          nextId={nextId}
+          queueTotal={queueIds.length}
+          queuePosition={pos + 1}
         />
       </div>
     </>

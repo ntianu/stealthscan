@@ -18,16 +18,10 @@ const SENIORITY_ORDER: Seniority[] = [
 
 // ─── Keyword extraction ───────────────────────────────────────────────────────
 
-/** Skills/tools extracted from job descriptions. Covers engineering AND PM/strategy. */
+/** Skills extracted from job descriptions — focused on PM/strategy domain. */
 const SKILL_KEYWORDS = [
-  // Engineering
-  "python", "javascript", "typescript", "react", "node.js", "sql", "postgresql",
-  "mongodb", "docker", "kubernetes", "aws", "gcp", "azure", "java", "go", "rust",
-  "machine learning", "data science", "figma", "swift", "kotlin", "ruby", "php",
-  "graphql", "redis", "terraform", "ci/cd", "llm", "ai", "ml",
-  "tableau", "looker", "dbt", "snowflake", "spark", "hadoop",
   // Data & Analytics
-  "analytics", "data analysis", "data engineering", "business intelligence",
+  "analytics", "data analysis", "business intelligence",
   "a/b testing", "experimentation", "statistics", "forecasting",
   // PM / Strategy
   "product management", "product strategy", "product roadmap", "roadmap",
@@ -38,29 +32,48 @@ const SKILL_KEYWORDS = [
   "program management", "project management", "pmp",
   "saas", "b2b", "b2c", "enterprise", "platform",
   "growth", "retention", "monetization", "conversion",
-  "api", "integrations", "technical product",
+  "integrations", "technical product",
   // Design
-  "ux", "ui", "design thinking", "prototyping", "wireframing",
+  "design thinking", "prototyping", "wireframing",
   // Leadership
   "team leadership", "people management", "hiring", "mentoring",
+  // Short/ambiguous — matched with word boundaries (see WORD_BOUNDARY_KEYWORDS)
+  "ux", "ui", "api",
 ];
+
+/** Short/ambiguous keywords that must match as whole words, not substrings. */
+const WORD_BOUNDARY_KEYWORDS = new Set(["ux", "ui", "api"]);
 
 export function extractRequirements(text: string): string[] {
   const lower = text.toLowerCase();
-  return SKILL_KEYWORDS.filter((kw) => lower.includes(kw));
+  return SKILL_KEYWORDS.filter((kw) => {
+    if (WORD_BOUNDARY_KEYWORDS.has(kw)) {
+      return new RegExp(`\\b${kw}\\b`).test(lower);
+    }
+    return lower.includes(kw);
+  });
 }
 
 // ─── Scoring dimensions ───────────────────────────────────────────────────────
 
-/** How well the job title aligns with the user's target roles. */
+/** How well the job title aligns with the user's target roles.
+ *
+ * A role matches only if the full role phrase is present in the title, or if
+ * ALL significant words (>3 chars) from the role appear in the title. This
+ * prevents "manager" alone matching any management title regardless of domain.
+ */
 function roleRelevanceScore(jobTitle: string, targetRoles: string[]): number {
-  if (targetRoles.length === 0) return 0.7; // neutral — no preference set
+  if (targetRoles.length === 0) return 0.5; // neutral — no preference set
   const titleLower = jobTitle.toLowerCase();
   for (const role of targetRoles) {
-    const words = role.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-    if (words.some((w) => titleLower.includes(w))) return 1.0;
+    const roleLower = role.toLowerCase();
+    // Full phrase match (best case)
+    if (titleLower.includes(roleLower)) return 1.0;
+    // All significant words must match
+    const words = roleLower.split(/\s+/).filter((w) => w.length > 3);
+    if (words.length > 0 && words.every((w) => titleLower.includes(w))) return 0.9;
   }
-  return 0.3; // title doesn't match any target role
+  return 0.2; // title doesn't match any target role
 }
 
 function seniorityScore(
@@ -92,7 +105,7 @@ function seniorityScore(
     }
   }
 
-  if (!detectedSeniority || userSeniorities.length === 0) return 0.7; // neutral
+  if (!detectedSeniority || userSeniorities.length === 0) return 0.5; // neutral
 
   if (userSeniorities.includes(detectedSeniority)) return 1.0;
 
@@ -112,7 +125,7 @@ function skillsScore(
   requirements: string[],
   userSkills: string[]
 ): { score: number; matched: string[]; missed: string[] } {
-  if (requirements.length === 0) return { score: 0.7, matched: [], missed: [] };
+  if (requirements.length === 0) return { score: 0.5, matched: [], missed: [] };
   if (userSkills.length === 0)
     return { score: 0.0, matched: [], missed: requirements };
 
@@ -122,7 +135,9 @@ function skillsScore(
 
   for (const req of requirements) {
     const reqLower = req.toLowerCase();
-    if (userSkillsLower.some((s) => s.includes(reqLower) || reqLower.includes(s))) {
+    // User skill must contain the requirement (e.g. "React Native" covers "react"),
+    // but NOT the reverse — avoids short user skills matching unrelated requirements.
+    if (userSkillsLower.some((s) => s.includes(reqLower))) {
       matched.push(req);
     } else {
       missed.push(req);

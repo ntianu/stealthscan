@@ -21,6 +21,8 @@ const updateSchema = z.object({
   sources: z.array(z.enum(["LINKEDIN","INDEED","WTTJ","GREENHOUSE","LEVER","REMOTIVE","WEWORKREMOTELY","HACKERNEWS","JOBICY","WORKINGNOMADS","RSS","BUILTIN"])).optional(),
   rssFeeds: z.array(z.string().url()).optional(),
   linkedinSearchUrls: z.array(z.string().url()).optional(),
+  autoApply: z.boolean().optional(),
+  autoApplyThreshold: z.number().min(0).max(1).optional(),
 });
 
 export async function GET(

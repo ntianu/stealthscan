@@ -20,6 +20,8 @@ const createProfileSchema = z.object({
   companyWhitelist: z.array(z.string()).default([]),
   sources: z.array(z.enum(["LINKEDIN","INDEED","WTTJ","GREENHOUSE","LEVER","REMOTIVE","WEWORKREMOTELY","HACKERNEWS","JOBICY","WORKINGNOMADS","RSS"])).default([]),
   rssFeeds: z.array(z.string().url()).default([]),
+  autoApply: z.boolean().default(false),
+  autoApplyThreshold: z.number().min(0).max(1).default(0.75),
 });
 
 export async function GET() {
