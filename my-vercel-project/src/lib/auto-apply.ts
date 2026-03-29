@@ -4,28 +4,26 @@ import { answerCommonQuestions } from "@/lib/ai/answer-gen";
 import { verifyGeneratedText } from "@/lib/ai/verifier";
 import { selectBestResume, selectRelevantBullets } from "@/lib/ai/resume-select";
 import { scoreJob } from "@/lib/matching/scorer";
-import { buildApplyKit, submitToGreenhouse, submitToLever } from "@/lib/submission/kit-builder";
 
-export interface AutoApplyResult {
+export interface AutoPrepResult {
   userId: string;
   processed: number;
-  submitted: number;
-  approved: number;   // kits ready for manual apply
-  skipped: number;    // verifier failed
+  prepared: number;  // generated + stays in queue for human review
+  skipped: number;   // already has content or below threshold
   errors: number;
   log: string[];
 }
 
 /**
- * Process all PREPARED applications for a user that meet the auto-apply threshold.
- * Called from the cron or a user-triggered endpoint.
+ * Pre-generates cover letters and ATS answers for PREPARED applications that
+ * meet the auto-apply threshold. Applications stay in PREPARED status —
+ * a human still reviews and submits each one.
  */
-export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
-  const result: AutoApplyResult = {
+export async function runAutoApply(userId: string): Promise<AutoPrepResult> {
+  const result: AutoPrepResult = {
     userId,
     processed: 0,
-    submitted: 0,
-    approved: 0,
+    prepared: 0,
     skipped: 0,
     errors: 0,
     log: [],
@@ -45,38 +43,42 @@ export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
   // Use the lowest threshold across all auto-apply profiles
   const threshold = Math.min(...profiles.map((p: { autoApplyThreshold: number }) => p.autoApplyThreshold));
 
-  // Load user + profile + resumes + bullets once
-  const [user, userProfile, resumes, bullets] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } }),
+  // Load user profile + resumes + bullets once
+  const [userProfile, resumes, bullets] = await Promise.all([
     db.userProfile.findUnique({ where: { userId } }),
     db.resume.findMany({ where: { userId } }),
     db.bullet.findMany({ where: { userId } }),
   ]);
 
-  if (!user || !userProfile) {
-    result.log.push("User or profile not found — skipping.");
+  if (!userProfile) {
+    result.log.push("User profile not found — skipping.");
     return result;
   }
 
-  // Find PREPARED applications above the threshold
+  // Find PREPARED applications above the threshold that don't have content yet
   const applications = await db.application.findMany({
     where: {
       userId,
       status: "PREPARED",
       fitScore: { gte: threshold },
+      coverLetter: null,
     },
-    include: { job: true, resume: true },
+    include: { job: true },
     orderBy: { fitScore: "desc" },
   });
 
-  result.log.push(`Found ${applications.length} application(s) at or above ${Math.round(threshold * 100)}% threshold.`);
+  result.log.push(`Found ${applications.length} application(s) to pre-generate at or above ${Math.round(threshold * 100)}% threshold.`);
+
+  const preferredSeniorities = await db.searchProfile
+    .findMany({ where: { userId, active: true }, select: { seniority: true } })
+    .then((ps: { seniority: string[] }[]) => ps.flatMap((p) => p.seniority) as import("@prisma/client").Seniority[]);
 
   for (const application of applications) {
     result.processed++;
     const job = application.job;
 
     try {
-      // 1. Select resume + bullets
+      // Select resume + bullets
       const bestResume = selectBestResume(resumes, {
         title: job.title,
         requirements: job.requirements,
@@ -88,7 +90,7 @@ export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
         5
       );
 
-      // 2. Generate cover letter
+      // Generate cover letter
       const { text: coverLetterText } = await generateCoverLetter({
         job: {
           title: job.title,
@@ -108,7 +110,7 @@ export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
         selectedBullets: selectedBullets.map((b) => ({ content: b.content, competencyTags: b.competencyTags })),
       });
 
-      // 3. Verifier gate — skip if failed
+      // Verifier
       const verifierReport = verifyGeneratedText(
         coverLetterText,
         { currentTitle: userProfile.currentTitle, skills: userProfile.skills, yearsExperience: userProfile.yearsExperience },
@@ -116,35 +118,16 @@ export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
         job.company
       );
 
-      if (!verifierReport.passed) {
-        result.skipped++;
-        result.log.push(`[SKIP] ${job.title} @ ${job.company} — verifier failed: ${verifierReport.issues?.join(", ")}`);
-        // Still save the generated content so user can review manually
-        await db.application.update({
-          where: { id: application.id },
-          data: {
-            coverLetter: coverLetterText,
-            verifierReport: JSON.parse(JSON.stringify(verifierReport)),
-            resumeId: bestResume?.id ?? application.resumeId,
-          },
-        });
-        continue;
-      }
-
-      // 4. ATS answers
+      // ATS answers
       const customAnswers = answerCommonQuestions(
         { yearsExperience: userProfile.yearsExperience, workAuth: userProfile.workAuth, currentTitle: userProfile.currentTitle, skills: userProfile.skills },
         job.title
       );
 
-      // 5. Update fit score
-      const preferredSeniorities = await db.searchProfile
-        .findMany({ where: { userId, active: true }, select: { seniority: true } })
-        .then((ps: { seniority: string[] }[]) => ps.flatMap((p) => p.seniority) as import("@prisma/client").Seniority[]);
+      // Updated fit score
       const fitResult = scoreJob(job, userProfile, preferredSeniorities);
 
-      // Save generated content
-      const resumeToUse = bestResume ?? application.resume;
+      // Save — status stays PREPARED for human review
       await db.application.update({
         where: { id: application.id },
         data: {
@@ -157,71 +140,8 @@ export async function runAutoApply(userId: string): Promise<AutoApplyResult> {
         },
       });
 
-      // 6. Attempt submission
-      const source = job.source;
-      if ((source === "GREENHOUSE" || source === "LEVER") && resumeToUse) {
-        const nameParts = (user.name ?? "").split(" ");
-        const firstName = nameParts[0] ?? "";
-        const lastName = nameParts.slice(1).join(" ") || "";
-
-        let subResult: { success: boolean; confirmationId?: string; error?: string };
-
-        if (source === "GREENHOUSE") {
-          const slugMatch = job.applyUrl.match(/greenhouse\.io\/(.+?)\/jobs/);
-          const companySlug = slugMatch?.[1] ?? job.company.toLowerCase();
-          subResult = await submitToGreenhouse({
-            jobId: job.externalId,
-            companySlug,
-            firstName,
-            lastName,
-            email: user.email,
-            resumeUrl: resumeToUse.fileUrl,
-            coverLetter: coverLetterText,
-            answers: customAnswers,
-          });
-        } else {
-          subResult = await submitToLever({
-            postingId: job.externalId,
-            companySlug: job.company.toLowerCase().replace(/\s+/g, ""),
-            name: user.name ?? user.email,
-            email: user.email,
-            resumeUrl: resumeToUse.fileUrl,
-            coverLetter: coverLetterText,
-          });
-        }
-
-        if (subResult.success) {
-          await db.$transaction([
-            db.application.update({
-              where: { id: application.id },
-              data: { status: "SUBMITTED", submittedAt: new Date(), coverLetter: coverLetterText, customAnswers },
-            }),
-            db.applicationProof.create({
-              data: {
-                applicationId: application.id,
-                jobSnapshot: job as never,
-                resumeSnapshot: resumeToUse.fileUrl,
-                coverLetterText,
-                answersSnapshot: customAnswers as never,
-                verifierReport: JSON.parse(JSON.stringify(verifierReport)),
-              },
-            }),
-          ]);
-          result.submitted++;
-          result.log.push(`[SUBMITTED] ${job.title} @ ${job.company}`);
-          continue;
-        } else {
-          result.log.push(`[WARN] ${job.title} @ ${job.company} — API submission failed (${subResult.error}), falling back to kit.`);
-        }
-      }
-
-      // For other sources or API failures: mark APPROVED with kit ready
-      await db.application.update({
-        where: { id: application.id },
-        data: { status: "APPROVED", coverLetter: coverLetterText, customAnswers },
-      });
-      result.approved++;
-      result.log.push(`[APPROVED] ${job.title} @ ${job.company} — Apply Kit ready for manual submission.`);
+      result.prepared++;
+      result.log.push(`[READY] ${job.title} @ ${job.company} — queued for review${verifierReport.passed ? "" : " (verifier flagged issues)"}`);
 
     } catch (err) {
       result.errors++;

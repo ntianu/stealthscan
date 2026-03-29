@@ -384,9 +384,9 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
               className="h-4 w-4 rounded border-border"
             />
             <div>
-              <span className="text-sm font-medium">Enable auto-apply for this profile</span>
+              <span className="text-sm font-medium">Enable auto-prep for this profile</span>
               <p className="text-xs text-muted-foreground mt-0.5">
-                When enabled, applications above the threshold will be automatically generated and submitted (Greenhouse/Lever) or queued as Apply Kits.
+                Cover letters and answers will be pre-generated overnight for jobs above the threshold. You still review and submit each one.
               </p>
             </div>
           </Label>
