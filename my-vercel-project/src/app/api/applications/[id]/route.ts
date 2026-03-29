@@ -37,13 +37,20 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { coverLetter, customAnswers } = body;
+  const { coverLetter, customAnswers, notes, status, interviewDate } = body;
+
+  const ALLOWED_STATUSES = ["PREPARED", "APPROVED", "SUBMITTED", "REJECTED", "RESPONDED", "INTERVIEWING", "OFFER"];
 
   const updated = await db.application.update({
     where: { id },
     data: {
       ...(coverLetter !== undefined ? { coverLetter } : {}),
       ...(customAnswers !== undefined ? { customAnswers } : {}),
+      ...(notes !== undefined ? { notes } : {}),
+      ...(status !== undefined && ALLOWED_STATUSES.includes(status) ? { status } : {}),
+      ...(interviewDate !== undefined ? { interviewDate: interviewDate ? new Date(interviewDate) : null } : {}),
+      ...(status === "SUBMITTED" && application.status !== "SUBMITTED" ? { submittedAt: new Date() } : {}),
+      ...(status === "RESPONDED" && application.status !== "RESPONDED" ? { responseAt: new Date() } : {}),
     },
   });
 

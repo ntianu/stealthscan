@@ -2,17 +2,18 @@ import { db } from "@/lib/db";
 import { scrapeWttj } from "@/lib/scrapers/wttj";
 import { scrapeGreenhouseMany } from "@/lib/scrapers/greenhouse";
 import { scrapeLeverMany } from "@/lib/scrapers/lever";
-import { scrapeLinkedIn } from "@/lib/scrapers/linkedin";
+import { scrapeLinkedInApify, parseLinkedInSearchUrl } from "@/lib/scrapers/linkedin-apify";
+import { scrapeBuiltInApify } from "@/lib/scrapers/builtin-apify";
 import { scrapeRemotive } from "@/lib/scrapers/remotive";
 import { scrapeWwr } from "@/lib/scrapers/wwr";
 import { scrapeHackerNews } from "@/lib/scrapers/hn";
 import { scrapeJobicy } from "@/lib/scrapers/jobicy";
 import { scrapeWorkingNomads } from "@/lib/scrapers/workingnomads";
+import { scrapeRssFeeds } from "@/lib/scrapers/rss";
 import { insertNewJobs } from "@/lib/matching/dedup";
 import type { RawJob } from "@/lib/scrapers/types";
 
-/** Keep only jobs whose title contains at least one meaningful word from the search query.
- *  Prevents off-topic results (e.g. Remotive returning DevOps jobs for a "Product Manager" query). */
+/** Keep only jobs whose title contains at least one meaningful word from the query. */
 function filterByQueryRelevance(jobs: RawJob[], query: string): RawJob[] {
   const words = query
     .toLowerCase()
@@ -25,9 +26,7 @@ function filterByQueryRelevance(jobs: RawJob[], query: string): RawJob[] {
   });
 }
 
-/** Keep only jobs whose location overlaps a profile's target locations.
- *  Remote jobs and jobs with no location string always pass.
- *  If the profile has no locations configured, all jobs pass. */
+/** Remote jobs and jobs with no location always pass. */
 function filterByProfileLocations(jobs: RawJob[], locations: string[]): RawJob[] {
   if (locations.length === 0) return jobs;
   return jobs.filter((job) => {
@@ -50,11 +49,179 @@ export interface ScanResult {
   debug: string[];
 }
 
-/**
- * Core scan logic — runs all active search profiles against job boards.
- * Extracted so it can be called both from the cron route handler AND
- * from /api/scan directly (avoids the Vercel Deployment Protection HTTP wall).
- */
+// ─── Scraper task helpers ─────────────────────────────────────────────────────
+
+interface ScraperTask {
+  name: string;
+  query: string;
+  fn: () => Promise<RawJob[]>;
+}
+
+function buildScraperTasks(
+  profile: {
+    sources: string[];
+    locations: string[];
+    remoteTypes: string[];
+    companyWhitelist: string[];
+    rssFeeds: string[];
+    linkedinSearchUrls: string[];
+  },
+  queries: string[],
+  location: string,
+  remoteOnly: boolean
+): ScraperTask[] {
+  const tasks: ScraperTask[] = [];
+  const noSourceFilter = profile.sources.length === 0;
+
+  // WTTJ — one task per query (max 3)
+  if (noSourceFilter || profile.sources.includes("WTTJ")) {
+    for (const query of queries.slice(0, 8)) {
+      tasks.push({
+        name: `WTTJ "${query}"`,
+        query,
+        fn: () => scrapeWttj({ query, location, remoteOnly }),
+      });
+    }
+  }
+
+  // Greenhouse — per-company, filter-based
+  if (profile.sources.includes("GREENHOUSE") && profile.companyWhitelist.length > 0) {
+    const slugs = profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""));
+    tasks.push({
+      name: "Greenhouse",
+      query: queries[0] ?? "",
+      fn: () => scrapeGreenhouseMany(slugs),
+    });
+  }
+
+  // Lever — per-company, filter-based
+  if (profile.sources.includes("LEVER") && profile.companyWhitelist.length > 0) {
+    const slugs = profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""));
+    tasks.push({
+      name: "Lever",
+      query: queries[0] ?? "",
+      fn: () => scrapeLeverMany(slugs),
+    });
+  }
+
+  const hasApifyToken = !!process.env.APIFY_API_TOKEN;
+
+  // LinkedIn via Apify — profile-level queries
+  if (noSourceFilter || profile.sources.includes("LINKEDIN")) {
+    if (!hasApifyToken) {
+      // Will produce a debug entry but no task
+    } else {
+      tasks.push({
+        name: "LinkedIn (Apify — profile queries)",
+        query: queries[0] ?? "",
+        fn: () =>
+          scrapeLinkedInApify({
+            queries: queries.slice(0, 5),
+            locations: profile.locations,
+            maxItemsPerQuery: 50,
+            postedLimit: "week",
+          }),
+      });
+    }
+  }
+
+  // LinkedIn via Apify — user-pasted search URLs (each URL = separate Apify call)
+  if (hasApifyToken && profile.linkedinSearchUrls.length > 0) {
+    for (const rawUrl of profile.linkedinSearchUrls) {
+      const parsed = parseLinkedInSearchUrl(rawUrl);
+      if (!parsed || parsed.jobTitles.length === 0) continue;
+      const label = parsed.jobTitles[0].slice(0, 40);
+      tasks.push({
+        name: `LinkedIn (URL: "${label}")`,
+        query: parsed.jobTitles[0],
+        fn: () =>
+          scrapeLinkedInApify({
+            queries: parsed.jobTitles,
+            locations: parsed.locations.length > 0 ? parsed.locations : profile.locations,
+            maxItemsPerQuery: 50,
+            postedLimit: parsed.postedLimit ?? "week",
+            workplaceType: parsed.workplaceType,
+            employmentType: parsed.employmentType,
+            experienceLevel: parsed.experienceLevel,
+          }),
+      });
+    }
+  }
+
+  if (!hasApifyToken && (noSourceFilter || profile.sources.includes("LINKEDIN"))) {
+    // Placeholder — handled as a debug note below
+  }
+
+  // BuiltIn via Apify
+  if (noSourceFilter || profile.sources.includes("BUILTIN")) {
+    if (hasApifyToken) {
+      tasks.push({
+        name: "BuiltIn (Apify)",
+        query: queries[0] ?? "",
+        fn: () =>
+          scrapeBuiltInApify({
+            keyword: queries[0] ?? "",
+            location: profile.locations[0],
+            maxResults: 30,
+          }),
+      });
+    }
+  }
+
+  // RemoteOK — one per query
+  if (noSourceFilter || profile.sources.includes("REMOTIVE")) {
+    for (const query of queries.slice(0, 8)) {
+      tasks.push({
+        name: `RemoteOK "${query}"`,
+        query,
+        fn: () => scrapeRemotive({ query }),
+      });
+    }
+  }
+
+  // We Work Remotely — one per query
+  if (noSourceFilter || profile.sources.includes("WEWORKREMOTELY")) {
+    for (const query of queries.slice(0, 8)) {
+      tasks.push({
+        name: `WWR "${query}"`,
+        query,
+        fn: () => scrapeWwr({ query }),
+      });
+    }
+  }
+
+  // Jobicy
+  if (noSourceFilter || profile.sources.includes("JOBICY")) {
+    tasks.push({
+      name: "Jobicy",
+      query: queries[0] ?? "",
+      fn: () => scrapeJobicy(),
+    });
+  }
+
+  // Working Nomads
+  if (noSourceFilter || profile.sources.includes("WORKINGNOMADS")) {
+    tasks.push({
+      name: "WorkingNomads",
+      query: queries[0] ?? "",
+      fn: () => scrapeWorkingNomads(),
+    });
+  }
+
+  // Hacker News
+  if (noSourceFilter || profile.sources.includes("HACKERNEWS")) {
+    tasks.push({
+      name: `HN "${queries[0] ?? ""}"`,
+      query: queries[0] ?? "",
+      fn: () => scrapeHackerNews(),
+    });
+  }
+
+  return tasks;
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export async function runScan(): Promise<ScanResult> {
   const profiles = await db.searchProfile.findMany({
     where: { active: true },
@@ -80,7 +247,6 @@ export async function runScan(): Promise<ScanResult> {
   const debug: string[] = [];
 
   for (const profile of profiles) {
-    // Build search queries: prefer the user's target roles, then title includes, then profile name
     const targetRoles = profile.user.userProfile?.targetRoles ?? [];
     const queries =
       targetRoles.length > 0
@@ -89,185 +255,75 @@ export async function runScan(): Promise<ScanResult> {
         ? profile.titleIncludes
         : [profile.name];
 
-    debug.push(`Profile "${profile.name}" → queries: [${queries.slice(0, 3).join(", ")}]`);
+    debug.push(`Profile "${profile.name}" → queries: [${queries.slice(0, 8).join(", ")}]`);
 
     const location = profile.locations[0] ?? "";
     const remoteOnly =
       profile.remoteTypes.includes("REMOTE") && profile.remoteTypes.length === 1;
 
-    // WTTJ (Algolia-based, no auth needed)
-    if (profile.sources.includes("WTTJ") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 3)) {
-        try {
-          const raw = await scrapeWttj({ query, location, remoteOnly });
-          const relevant = filterByQueryRelevance(raw, query);
-          const jobs = filterByProfileLocations(relevant, profile.locations);
-          const result = await insertNewJobs(jobs);
-          totalFetched += result.fetched;
-          totalInserted += result.inserted;
-          totalDeduped += result.deduped;
-          debug.push(
-            `  WTTJ "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-          );
-        } catch (err) {
-          errors.push(`WTTJ error for "${query}": ${String(err)}`);
-        }
-      }
+    if (!process.env.APIFY_API_TOKEN) {
+      debug.push("  LinkedIn/BuiltIn: skipped (APIFY_API_TOKEN not set)");
+    }
+    if (profile.linkedinSearchUrls.length > 0) {
+      debug.push(`  LinkedIn search URLs: ${profile.linkedinSearchUrls.length} configured`);
     }
 
-    // Greenhouse (for whitelisted companies only)
-    if (
-      profile.sources.includes("GREENHOUSE") &&
-      profile.companyWhitelist.length > 0
-    ) {
+    // Build all tasks for this profile
+    const tasks = buildScraperTasks(
+      {
+        sources: profile.sources as string[],
+        locations: profile.locations,
+        remoteTypes: profile.remoteTypes as string[],
+        companyWhitelist: profile.companyWhitelist,
+        rssFeeds: profile.rssFeeds,
+        linkedinSearchUrls: profile.linkedinSearchUrls,
+      },
+      queries,
+      location,
+      remoteOnly
+    );
+
+    // Run all scrapers in parallel
+    const settled = await Promise.allSettled(tasks.map((t) => t.fn()));
+
+    // Insert results (can also be parallelised — skipDuplicates handles races)
+    const insertPromises = settled.map(async (result, i) => {
+      const { name, query } = tasks[i];
+      if (result.status === "rejected") {
+        errors.push(`${name}: ${String(result.reason)}`);
+        return;
+      }
+      const raw = result.value;
+      const relevant = query ? filterByQueryRelevance(raw, query) : raw;
+      const filtered = filterByProfileLocations(relevant, profile.locations);
       try {
-        const raw = await scrapeGreenhouseMany(
-          profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
-        );
-        const jobs = filterByProfileLocations(raw, profile.locations);
-        const result = await insertNewJobs(jobs);
-        totalFetched += result.fetched;
-        totalInserted += result.inserted;
-        totalDeduped += result.deduped;
+        const r = await insertNewJobs(filtered);
+        totalFetched += r.fetched;
+        totalInserted += r.inserted;
+        totalDeduped += r.deduped;
+        debug.push(`  ${name}: fetched=${r.fetched} inserted=${r.inserted} deduped=${r.deduped}`);
       } catch (err) {
-        errors.push(`Greenhouse error: ${String(err)}`);
+        errors.push(`${name} insert: ${String(err)}`);
       }
-    }
+    });
 
-    // Lever (for whitelisted companies only)
-    if (
-      profile.sources.includes("LEVER") &&
-      profile.companyWhitelist.length > 0
-    ) {
+    await Promise.all(insertPromises);
+
+    // RSS feeds — run after main scrapers (sequential OK, feeds are fast)
+    if (profile.rssFeeds.length > 0) {
       try {
-        const raw = await scrapeLeverMany(
-          profile.companyWhitelist.map((c) => c.toLowerCase().replace(/\s+/g, ""))
-        );
-        const jobs = filterByProfileLocations(raw, profile.locations);
-        const result = await insertNewJobs(jobs);
-        totalFetched += result.fetched;
-        totalInserted += result.inserted;
-        totalDeduped += result.deduped;
-      } catch (err) {
-        errors.push(`Lever error: ${String(err)}`);
-      }
-    }
-
-    // LinkedIn (public Easy Apply listings)
-    if (profile.sources.includes("LINKEDIN") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 3)) {
-        try {
-          const raw = await scrapeLinkedIn({ query, location, remoteOnly });
-          const relevant = filterByQueryRelevance(raw, query);
-          const jobs = filterByProfileLocations(relevant, profile.locations);
-          const result = await insertNewJobs(jobs);
-          totalFetched += result.fetched;
-          totalInserted += result.inserted;
-          totalDeduped += result.deduped;
-          debug.push(
-            `  LinkedIn "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-          );
-        } catch (err) {
-          errors.push(`LinkedIn error for "${query}": ${String(err)}`);
-        }
-      }
-    }
-
-    // RemoteOK (free JSON API — ~100 remote jobs, engineering-heavy)
-    if (profile.sources.includes("REMOTIVE") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 3)) {
-        try {
-          const raw = await scrapeRemotive({ query });
-          const relevant = filterByQueryRelevance(raw, query);
-          const jobs = filterByProfileLocations(relevant, profile.locations);
-          const result = await insertNewJobs(jobs);
-          totalFetched += result.fetched;
-          totalInserted += result.inserted;
-          totalDeduped += result.deduped;
-          debug.push(
-            `  RemoteOK "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-          );
-        } catch (err) {
-          errors.push(`RemoteOK error for "${query}": ${String(err)}`);
-        }
-      }
-    }
-
-    // We Work Remotely (RSS feeds, broad category coverage incl. product/design/marketing)
-    if (profile.sources.includes("WEWORKREMOTELY") || profile.sources.length === 0) {
-      for (const query of queries.slice(0, 3)) {
-        try {
-          const raw = await scrapeWwr({ query });
-          const relevant = filterByQueryRelevance(raw, query);
-          const jobs = filterByProfileLocations(relevant, profile.locations);
-          const result = await insertNewJobs(jobs);
-          totalFetched += result.fetched;
-          totalInserted += result.inserted;
-          totalDeduped += result.deduped;
-          debug.push(
-            `  WWR "${query}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-          );
-        } catch (err) {
-          errors.push(`WWR error for "${query}": ${String(err)}`);
-        }
-      }
-    }
-
-    // Jobicy (JSON API, US-filtered, salary data, non-engineering categories)
-    if (profile.sources.includes("JOBICY") || profile.sources.length === 0) {
-      try {
-        const raw = await scrapeJobicy();
-        const relevant = filterByQueryRelevance(raw, queries[0] ?? "");
-        const jobs = filterByProfileLocations(relevant, profile.locations);
-        const result = await insertNewJobs(jobs);
-        totalFetched += result.fetched;
-        totalInserted += result.inserted;
-        totalDeduped += result.deduped;
+        const { jobs: raw, feedErrors } = await scrapeRssFeeds(profile.rssFeeds);
+        const filtered = filterByProfileLocations(raw, profile.locations);
+        const r = await insertNewJobs(filtered);
+        totalFetched += r.fetched;
+        totalInserted += r.inserted;
+        totalDeduped += r.deduped;
         debug.push(
-          `  Jobicy: fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
+          `  RSS (${profile.rssFeeds.length} feed${profile.rssFeeds.length > 1 ? "s" : ""}): fetched=${r.fetched} inserted=${r.inserted} deduped=${r.deduped}`
         );
+        for (const fe of feedErrors) errors.push(`RSS feed error: ${fe}`);
       } catch (err) {
-        errors.push(`Jobicy error: ${String(err)}`);
-      }
-    }
-
-    // Working Nomads (JSON API, ~30 remote jobs, broad role coverage)
-    if (profile.sources.includes("WORKINGNOMADS") || profile.sources.length === 0) {
-      try {
-        const raw = await scrapeWorkingNomads();
-        const relevant = filterByQueryRelevance(raw, queries[0] ?? "");
-        const jobs = filterByProfileLocations(relevant, profile.locations);
-        const result = await insertNewJobs(jobs);
-        totalFetched += result.fetched;
-        totalInserted += result.inserted;
-        totalDeduped += result.deduped;
-        debug.push(
-          `  WorkingNomads: fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-        );
-      } catch (err) {
-        errors.push(`WorkingNomads error: ${String(err)}`);
-      }
-    }
-
-    // Hacker News "Who is Hiring?" — monthly thread, all role types
-    // Fetched once per profile (not per query) since the thread is role-agnostic;
-    // filterByQueryRelevance handles per-role narrowing after fetch.
-    if (profile.sources.includes("HACKERNEWS") || profile.sources.length === 0) {
-      try {
-        const raw = await scrapeHackerNews();
-        // Apply relevance filter for the primary query (first target role)
-        const primaryQuery = queries[0] ?? "";
-        const relevant = filterByQueryRelevance(raw, primaryQuery);
-        const jobs = filterByProfileLocations(relevant, profile.locations);
-        const result = await insertNewJobs(jobs);
-        totalFetched += result.fetched;
-        totalInserted += result.inserted;
-        totalDeduped += result.deduped;
-        debug.push(
-          `  HN "${primaryQuery}": fetched=${result.fetched} inserted=${result.inserted} deduped=${result.deduped}`
-        );
-      } catch (err) {
-        errors.push(`HN error: ${String(err)}`);
+        errors.push(`RSS error: ${String(err)}`);
       }
     }
   }

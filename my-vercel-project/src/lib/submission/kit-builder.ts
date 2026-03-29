@@ -1,7 +1,7 @@
 import { Application, Job, Resume } from "@prisma/client";
 
 export interface ApplyKit {
-  jobUrl: string;
+  applyUrl: string;
   resumeUrl: string;
   coverLetter: string;
   answers: Record<string, string>;
@@ -26,7 +26,7 @@ export function buildApplyKit(
   ];
 
   return {
-    jobUrl: application.job.applyUrl,
+    applyUrl: application.job.applyUrl,
     resumeUrl: application.resume?.fileUrl ?? "",
     coverLetter: application.coverLetter ?? "",
     answers: customAnswers,

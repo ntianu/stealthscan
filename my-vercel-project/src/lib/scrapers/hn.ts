@@ -7,6 +7,7 @@
  * Covers all role types: engineering, product, design, marketing, etc.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const ALGOLIA_BASE = "https://hn.algolia.com/api/v1";
 
@@ -17,10 +18,6 @@ const TECH_KEYWORDS = [
   "kotlin","ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(text: string): string[] {
-  const lower = text.toLowerCase();
-  return TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-}
 
 /** Strip HTML tags and decode common entities. */
 function cleanHtml(html: string): string {

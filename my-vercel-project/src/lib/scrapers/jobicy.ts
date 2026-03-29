@@ -3,6 +3,7 @@
  * Has salary data, industry tags, and non-engineering categories (design, marketing, etc.).
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const JOBICY_API = "https://jobicy.com/api/v2/remote-jobs";
 
@@ -13,14 +14,6 @@ const TECH_KEYWORDS = [
   "ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(html: string, industry: string[]): string[] {
-  const lower = html.toLowerCase();
-  const fromDesc = TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-  const fromIndustry = industry
-    .map((i) => i.toLowerCase())
-    .filter((i) => TECH_KEYWORDS.includes(i));
-  return [...new Set([...fromDesc, ...fromIndustry])];
-}
 
 function stripHtml(html: string): string {
   return html
@@ -94,7 +87,7 @@ export async function scrapeJobicy(): Promise<RawJob[]> {
         salaryMin,
         salaryMax,
         description,
-        requirements: extractRequirements(job.jobDescription, job.jobIndustry),
+        requirements: extractRequirements(job.jobDescription + " " + (job.jobIndustry ?? "")),
         applyUrl: job.url,
         postedAt: job.pubDate ? new Date(job.pubDate) : null,
       };

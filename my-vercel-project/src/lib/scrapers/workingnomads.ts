@@ -3,6 +3,7 @@
  * Good for non-engineering roles (product, design, marketing).
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const WN_API = "https://www.workingnomads.com/api/exposed_jobs/";
 
@@ -13,14 +14,6 @@ const TECH_KEYWORDS = [
   "ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(text: string, tags: string[]): string[] {
-  const lower = text.toLowerCase();
-  const fromDesc = TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-  const fromTags = tags
-    .map((t) => t.toLowerCase())
-    .filter((t) => TECH_KEYWORDS.includes(t));
-  return [...new Set([...fromDesc, ...fromTags])];
-}
 
 interface WNJob {
   url: string;
@@ -63,7 +56,7 @@ export async function scrapeWorkingNomads(): Promise<RawJob[]> {
         salaryMin: null,
         salaryMax: null,
         description: job.description,
-        requirements: extractRequirements(job.description, job.tags ?? []),
+        requirements: extractRequirements(job.description + " " + (job.tags ?? []).join(" ")),
         applyUrl: job.url,
         postedAt: job.pub_date ? new Date(job.pub_date) : null,
       };

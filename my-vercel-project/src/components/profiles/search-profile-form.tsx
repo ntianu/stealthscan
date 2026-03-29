@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { TagInput } from "@/components/ui/tag-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap } from "lucide-react";
 
 const REMOTE_TYPES = ["REMOTE", "HYBRID", "ONSITE"] as const;
 const SENIORITY_LEVELS = ["INTERN", "JUNIOR", "MID", "SENIOR", "LEAD", "EXECUTIVE"] as const;
@@ -34,6 +34,8 @@ interface ProfileFormData {
   companyBlacklist: string[];
   companyWhitelist: string[];
   sources: MultiEnum<typeof SOURCES[number]>;
+  autoApply: boolean;
+  autoApplyThreshold: number;
 }
 
 interface SearchProfileFormProps {
@@ -84,6 +86,8 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
     companyBlacklist: initialData?.companyBlacklist ?? [],
     companyWhitelist: initialData?.companyWhitelist ?? [],
     sources: (initialData?.sources as ProfileFormData["sources"]) ?? [],
+    autoApply: initialData?.autoApply ?? false,
+    autoApplyThreshold: initialData?.autoApplyThreshold ?? 75,
   });
 
   const [saving, setSaving] = useState(false);
@@ -104,6 +108,7 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
       ...form,
       minSalary: form.minSalary ? parseInt(form.minSalary) : null,
       maxSalary: form.maxSalary ? parseInt(form.maxSalary) : null,
+      autoApplyThreshold: form.autoApplyThreshold / 100,
     };
 
     try {
@@ -359,6 +364,58 @@ export function SearchProfileForm({ initialData }: SearchProfileFormProps) {
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Leave blank to search all sources</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Auto-apply */}
+      <Card className={form.autoApply ? "border-violet-500/30 bg-violet-500/[0.04]" : ""}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="h-4 w-4 text-violet-400" />
+            Auto-apply
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.autoApply}
+              onChange={(e) => setForm({ ...form, autoApply: e.target.checked })}
+              className="h-4 w-4 rounded border-border"
+            />
+            <div>
+              <span className="text-sm font-medium">Enable auto-prep for this profile</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Cover letters and answers will be pre-generated overnight for jobs above the threshold. You still review and submit each one.
+              </p>
+            </div>
+          </Label>
+
+          {form.autoApply && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label htmlFor="threshold">Minimum fit score to auto-apply</Label>
+                <span className="text-sm font-bold text-violet-400 tabular-nums">{form.autoApplyThreshold}%</span>
+              </div>
+              <input
+                id="threshold"
+                type="range"
+                min={60}
+                max={95}
+                step={5}
+                value={form.autoApplyThreshold}
+                onChange={(e) => setForm({ ...form, autoApplyThreshold: parseInt(e.target.value) })}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>60% — more applications</span>
+                <span>95% — very selective</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Only applications at or above this fit score will be auto-processed. Jobs that fail the verifier check will stay in your queue for manual review.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

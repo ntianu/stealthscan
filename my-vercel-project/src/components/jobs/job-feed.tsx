@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Building2, MapPin, ExternalLink, Loader2, Plus, CheckCircle2,
-  RefreshCw, SlidersHorizontal,
+  SlidersHorizontal,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -32,7 +32,7 @@ export interface ScoredJob {
   applicationId: string | null; // existing application if already queued
 }
 
-const SOURCES = ["WTTJ", "GREENHOUSE", "LEVER", "INDEED", "LINKEDIN"] as const;
+const SOURCES = ["LINKEDIN", "BUILTIN", "WTTJ", "GREENHOUSE", "LEVER", "REMOTIVE", "RSS", "MANUAL"] as const;
 const REMOTE_TYPES = ["REMOTE", "HYBRID", "ONSITE"] as const;
 
 function FitRing({ score }: { score: number }) {
@@ -132,34 +132,11 @@ interface JobFeedProps {
 
 export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedProps) {
   const router = useRouter();
-  const [seeding, setSeeding] = useState(false);
   const [minFit, setMinFit] = useState(0);
   const [filterSource, setFilterSource] = useState<string[]>([]);
   const [filterRemote, setFilterRemote] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"fit" | "date">("fit");
   const [showFilters, setShowFilters] = useState(false);
-
-  const handleSeed = async () => {
-    if (!hasSearchProfile) {
-      toast.error("Create a Search Profile first so we know what to look for.");
-      return;
-    }
-    setSeeding(true);
-    try {
-      const res = await fetch("/api/jobs/seed", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? "Scan failed");
-      } else {
-        toast.success(`Scan complete — ${data.inserted} new job${data.inserted !== 1 ? "s" : ""} found`);
-        router.refresh();
-      }
-    } catch {
-      toast.error("Scan failed");
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handlePrepare = async (jobId: string): Promise<string | null> => {
     try {
@@ -204,10 +181,6 @@ export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedPr
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleSeed} disabled={seeding}>
-          {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          {seeding ? "Scanning…" : "Scan now"}
-        </Button>
         <Button
           variant={showFilters || activeFilters > 0 ? "default" : "outline"}
           size="sm"
@@ -329,7 +302,7 @@ export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedPr
             <p className="text-sm font-medium text-muted-foreground">No jobs match your current filters.</p>
             {initialJobs.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                Click <strong className="text-foreground">Scan now</strong> to pull fresh jobs from your search profiles.
+                Click <strong className="text-foreground">Run Scan</strong> (top right) to pull fresh jobs from your search profiles.
               </p>
             )}
             {initialJobs.length > 0 && minFit > 0 && (

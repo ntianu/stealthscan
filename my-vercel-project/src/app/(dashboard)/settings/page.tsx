@@ -4,6 +4,8 @@ import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UserProfileForm } from "@/components/settings/user-profile-form";
 import { LocationPrefsForm } from "@/components/settings/location-prefs-form";
+import { RssFeedsForm } from "@/components/settings/rss-feeds-form";
+import { LinkedInSearchUrlsForm } from "@/components/settings/linkedin-search-urls-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -46,6 +48,40 @@ export default async function SettingsPage() {
               <LocationPrefsForm
                 profileId={firstActiveProfile.id}
                 initialLocations={firstActiveProfile.locations}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {firstActiveProfile && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">LinkedIn job searches</CardTitle>
+              <CardDescription className="text-xs">
+                Paste LinkedIn search page URLs. The system runs each search via Apify on every scan — no account needed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LinkedInSearchUrlsForm
+                profileId={firstActiveProfile.id}
+                initialUrls={firstActiveProfile.linkedinSearchUrls}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {firstActiveProfile && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">RSS feeds</CardTitle>
+              <CardDescription className="text-xs">
+                Optional: paste RSS job feed URLs (Google Alerts, niche job boards, etc.).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RssFeedsForm
+                profileId={firstActiveProfile.id}
+                initialFeeds={firstActiveProfile.rssFeeds}
               />
             </CardContent>
           </Card>

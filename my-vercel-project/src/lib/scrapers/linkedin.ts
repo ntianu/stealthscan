@@ -105,7 +105,7 @@ export async function scrapeLinkedIn(
   url.searchParams.set("keywords", query);
   if (location) url.searchParams.set("location", location);
   if (remoteOnly) url.searchParams.set("f_WT", "2"); // 2 = remote
-  url.searchParams.set("f_AL", "true"); // Easy Apply only
+  // Removed f_AL=true (Easy Apply only) — it filters out the majority of jobs
   url.searchParams.set("count", String(maxJobs));
   url.searchParams.set("start", "0");
 
@@ -121,11 +121,18 @@ export async function scrapeLinkedIn(
       cache: "no-store",
     });
 
-    if (!res.ok) return [];
+    // Log non-200 for scan debug visibility (LinkedIn blocks Vercel AWS IPs with 999/429)
+    if (!res.ok) {
+      throw new Error(`LinkedIn HTTP ${res.status} for "${query}" — likely IP-blocked (use RSS alert feed instead)`);
+    }
 
     const html = await res.text();
+    // If response is too small to contain jobs, LinkedIn returned a challenge page
+    if (html.length < 500) {
+      throw new Error(`LinkedIn returned ${html.length}b for "${query}" — likely bot-detection page`);
+    }
     return parseJobs(html);
-  } catch {
-    return [];
+  } catch (err) {
+    throw err; // Let run-scan.ts log it to errors[]
   }
 }

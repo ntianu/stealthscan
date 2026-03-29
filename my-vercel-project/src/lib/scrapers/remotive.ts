@@ -4,6 +4,7 @@
  * Source enum is kept as REMOTIVE to avoid a schema migration.
  */
 import { RawJob } from "./types";
+import { extractRequirements } from "@/lib/matching/scorer";
 
 const REMOTEOK_API = "https://remoteok.com/api";
 
@@ -14,14 +15,6 @@ const TECH_KEYWORDS = [
   "ruby","php","graphql","redis","terraform","ci/cd","flutter","rust",
 ];
 
-function extractRequirements(text: string, tags: string[]): string[] {
-  const lower = text.toLowerCase();
-  const fromDesc = TECH_KEYWORDS.filter((kw) => lower.includes(kw));
-  const fromTags = tags
-    .map((t) => t.toLowerCase())
-    .filter((t) => TECH_KEYWORDS.includes(t));
-  return [...new Set([...fromDesc, ...fromTags])];
-}
 
 interface RemoteOKJob {
   id: string | number;
@@ -101,7 +94,7 @@ export async function scrapeRemotive(params: {
           salaryMin,
           salaryMax,
           description,
-          requirements: extractRequirements(description, tags),
+          requirements: extractRequirements(description + " " + (Array.isArray(tags) ? tags.join(" ") : "")),
           applyUrl,
           postedAt,
         };

@@ -20,6 +20,9 @@ enum Source {
   HACKERNEWS
   JOBICY
   WORKINGNOMADS
+  RSS
+  BUILTIN
+  MANUAL
 }
 
 enum RemoteType {
@@ -57,6 +60,8 @@ enum ApplicationStatus {
   SUBMITTED
   REJECTED
   RESPONDED
+  INTERVIEWING
+  OFFER
 }
 
 // ─── Models ──────────────────────────────────────────────────────────────────
@@ -101,6 +106,7 @@ model SearchProfile {
   titleIncludes    String[]
   titleExcludes    String[]
   locations        String[]
+  rssFeeds         String[]
   remoteTypes      RemoteType[]
   minSalary        Int?
   maxSalary        Int?
@@ -109,9 +115,12 @@ model SearchProfile {
   industries       String[]
   companyBlacklist String[]
   companyWhitelist String[]
-  sources          Source[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  sources             Source[]
+  linkedinSearchUrls  String[]
+  autoApply           Boolean      @default(false)
+  autoApplyThreshold  Float        @default(0.75)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 }
 
 model Job {
@@ -184,6 +193,8 @@ model Application {
   submittedAt    DateTime?
   responseAt     DateTime?
   responseType   String?
+  notes          String?           @db.Text
+  interviewDate  DateTime?
   proof          ApplicationProof?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt

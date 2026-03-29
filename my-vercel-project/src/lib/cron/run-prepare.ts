@@ -54,7 +54,7 @@ export async function runPrepare(): Promise<PrepareResult> {
         .filter((job) => passesHardFilters(job, profile))
         .map((job) => ({
           job,
-          ...scoreJob(job, user.userProfile!, profile.seniority),
+          ...scoreJob(job, user.userProfile!, profile.seniority, user.userProfile!.targetRoles),
         }))
         .sort((a, b) => b.score - a.score)
         .slice(0, profile.dailyLimit);

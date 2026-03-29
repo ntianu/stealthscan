@@ -6,10 +6,12 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 const statusColors: Record<string, string> = {
-  SUBMITTED: "bg-emerald-500/15 text-emerald-400",
-  REJECTED:  "bg-muted text-muted-foreground",
-  RESPONDED: "bg-violet-500/15 text-violet-400",
-  APPROVED:  "bg-blue-500/15 text-blue-400",
+  SUBMITTED:    "bg-emerald-500/15 text-emerald-400",
+  REJECTED:     "bg-muted text-muted-foreground",
+  RESPONDED:    "bg-violet-500/15 text-violet-400",
+  APPROVED:     "bg-blue-500/15 text-blue-400",
+  INTERVIEWING: "bg-purple-500/15 text-purple-400",
+  OFFER:        "bg-green-500/15 text-green-400",
 };
 
 export default async function HistoryPage() {
@@ -18,7 +20,7 @@ export default async function HistoryPage() {
   const applications = await db.application.findMany({
     where: {
       userId: user.id,
-      status: { in: ["SUBMITTED", "REJECTED", "RESPONDED", "APPROVED"] },
+      status: { in: ["SUBMITTED", "REJECTED", "RESPONDED", "APPROVED", "INTERVIEWING", "OFFER"] },
     },
     include: { job: true },
     orderBy: { updatedAt: "desc" },

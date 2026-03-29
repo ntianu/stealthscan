@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   CheckCircle2, XCircle, AlertCircle, FileText, Building2,
   MapPin, ExternalLink, Loader2, ThumbsUp, ThumbsDown,
-  ClipboardCopy, Check, Sparkles,
+  ClipboardCopy, Check, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 interface ApplyKit {
@@ -19,7 +18,7 @@ interface ApplyKit {
   resumeUrl: string | null;
   answers: Record<string, string>;
   applyUrl: string;
-  instructions: string;
+  instructions: string[];
 }
 
 interface VerifierReport {
@@ -58,6 +57,10 @@ interface ReviewPanelProps {
   resume: { name: string; fileUrl: string } | null;
   status: string;
   hasProfile: boolean;
+  prevId: string | null;
+  nextId: string | null;
+  queueTotal: number;
+  queuePosition: number;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -84,7 +87,11 @@ function ApplyKitModal({ kit, onClose }: { kit: ApplyKit; onClose: () => void })
             <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
           </div>
 
-          <p className="text-sm text-muted-foreground">{kit.instructions}</p>
+          <ol className="space-y-1">
+            {kit.instructions.map((step, i) => (
+              <li key={i} className="text-sm text-muted-foreground">{step}</li>
+            ))}
+          </ol>
 
           <div className="flex gap-3">
             <a href={kit.applyUrl} target="_blank" rel="noopener noreferrer">
@@ -146,6 +153,10 @@ export function ReviewPanel({
   resume,
   status: initialStatus,
   hasProfile,
+  prevId,
+  nextId,
+  queueTotal,
+  queuePosition,
 }: ReviewPanelProps) {
   const router = useRouter();
   const [coverLetter, setCoverLetter] = useState(initialCoverLetter ?? "");
@@ -163,7 +174,7 @@ export function ReviewPanel({
   const fitPct = Math.round(fitScore * 100);
   const fitColor = fitPct >= 70 ? "text-emerald-400" : fitPct >= 50 ? "text-amber-400" : "text-red-400";
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!hasProfile) {
       toast.error("Complete your Professional Profile in Settings first.");
       return;
@@ -181,13 +192,26 @@ export function ReviewPanel({
       setVerifierReport(data.verifierReport);
       setFitScore(data.fitScore);
       setFitExplanation(data.fitExplanation);
-      toast.success(`AI content generated (${data.tokensUsed.toLocaleString()} tokens)`);
+      toast.success("Cover letter ready");
     } catch (err) {
       toast.error(`Generation failed: ${String(err)}`);
     } finally {
       setGenerating(false);
     }
-  };
+  }, [applicationId, hasProfile]);
+
+  // Auto-generate when landing on a fresh application that has no cover letter yet
+  useEffect(() => {
+    if (isActionable && !initialCoverLetter && hasProfile) {
+      handleGenerate();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goNext = useCallback(() => {
+    if (nextId) router.push(`/queue/${nextId}`);
+    else router.push("/queue");
+    router.refresh();
+  }, [nextId, router]);
 
   const handleApprove = async () => {
     setApproving(true);
@@ -202,11 +226,10 @@ export function ReviewPanel({
       setStatus(data.status);
       if (data.kit) {
         setKit(data.kit as ApplyKit);
-        toast.success("Application approved — your Apply Kit is ready!");
+        toast.success("Apply Kit ready!");
       } else {
-        toast.success("Application submitted successfully!");
-        router.push("/queue");
-        router.refresh();
+        toast.success("Submitted!");
+        goNext();
       }
     } catch (err) {
       toast.error(`Failed to approve: ${String(err)}`);
@@ -220,9 +243,8 @@ export function ReviewPanel({
     try {
       const res = await fetch(`/api/applications/${applicationId}/reject`, { method: "POST" });
       if (!res.ok) throw new Error(await res.text());
-      toast.success("Application skipped");
-      router.push("/queue");
-      router.refresh();
+      toast.success("Skipped");
+      goNext();
     } catch (err) {
       toast.error(`Failed: ${String(err)}`);
     } finally {
@@ -232,9 +254,32 @@ export function ReviewPanel({
 
   return (
     <>
-      {kit && <ApplyKitModal kit={kit} onClose={() => { setKit(null); router.push("/queue"); router.refresh(); }} />}
+      {kit && <ApplyKitModal kit={kit} onClose={() => { setKit(null); goNext(); }} />}
 
       <div className="space-y-4">
+        {/* Navigation */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="ghost" size="sm"
+            className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+            disabled={!prevId}
+            onClick={() => prevId && router.push(`/queue/${prevId}`)}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> Prev
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {queuePosition} / {queueTotal}
+          </span>
+          <Button
+            variant="ghost" size="sm"
+            className="gap-1 text-xs text-muted-foreground hover:text-foreground"
+            disabled={!nextId}
+            onClick={() => nextId && router.push(`/queue/${nextId}`)}
+          >
+            Next <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
         {/* Job header */}
         <Card>
           <CardContent className="pt-4 pb-4 px-4">
@@ -306,7 +351,9 @@ export function ReviewPanel({
         {/* Resume */}
         {resume && (
           <Card>
-            <CardHeader className="pb-1.5 pt-3 px-4"><CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Resume</CardTitle></CardHeader>
+            <CardHeader className="pb-1.5 pt-3 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected Resume</CardTitle>
+            </CardHeader>
             <CardContent className="px-4 pb-3">
               <div className="flex items-center gap-3">
                 <FileText className="h-7 w-7 text-primary shrink-0" />
@@ -330,16 +377,13 @@ export function ReviewPanel({
               <div className="flex items-center gap-2">
                 {isActionable && (
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="outline" size="sm"
                     className="h-7 text-xs gap-1 text-violet-400 border-violet-500/30 hover:bg-violet-500/10"
                     onClick={handleGenerate}
                     disabled={generating || approving || rejecting}
                   >
-                    {generating
-                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                      : <Sparkles className="h-3 w-3" />}
-                    {generating ? "Generating…" : coverLetter ? "Regenerate" : "Generate with AI"}
+                    {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    {generating ? "Generating…" : coverLetter ? "Regenerate" : "Generate"}
                   </Button>
                 )}
                 {coverLetter && <CopyButton text={coverLetter} />}
@@ -348,13 +392,20 @@ export function ReviewPanel({
           </CardHeader>
           <CardContent className="px-4 pb-4">
             {isActionable ? (
-              <Textarea
-                value={coverLetter}
-                onChange={e => setCoverLetter(e.target.value)}
-                rows={12}
-                placeholder="No cover letter generated. You can write one manually here."
-                className="text-sm leading-relaxed font-sans"
-              />
+              generating && !coverLetter ? (
+                <div className="flex items-center gap-2 py-10 justify-center text-muted-foreground text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Writing cover letter…
+                </div>
+              ) : (
+                <Textarea
+                  value={coverLetter}
+                  onChange={e => setCoverLetter(e.target.value)}
+                  rows={12}
+                  placeholder="No cover letter yet."
+                  className="text-sm leading-relaxed font-sans"
+                />
+              )
             ) : (
               <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">
                 {coverLetter || "No cover letter."}
@@ -366,7 +417,9 @@ export function ReviewPanel({
         {/* Custom answers */}
         {customAnswers && Object.keys(customAnswers).length > 0 && (
           <Card>
-            <CardHeader className="pb-1.5 pt-3 px-4"><CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Application Questions</CardTitle></CardHeader>
+            <CardHeader className="pb-1.5 pt-3 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Application Questions</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-2 px-4 pb-3">
               {Object.entries(customAnswers).map(([q, a]) => (
                 <div key={q} className="rounded-lg bg-muted/30 p-3 border border-border">
@@ -389,7 +442,8 @@ export function ReviewPanel({
               {rejecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsDown className="h-3.5 w-3.5" />}
               Skip
             </Button>
-            <Button onClick={handleApprove} disabled={approving || rejecting} className="gap-1.5 text-xs">
+            <Button onClick={handleApprove} disabled={approving || rejecting || generating}
+              className="gap-1.5 text-xs">
               {approving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ThumbsUp className="h-3.5 w-3.5" />}
               Approve & Submit
             </Button>

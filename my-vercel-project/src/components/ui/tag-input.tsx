@@ -11,6 +11,8 @@ interface TagInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** Set to false for case-sensitive values like URLs. Defaults to true. */
+  lowercase?: boolean;
 }
 
 export function TagInput({
@@ -19,11 +21,12 @@ export function TagInput({
   placeholder = "Type and press Enter…",
   className,
   disabled,
+  lowercase = true,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
 
   const addTag = (raw: string) => {
-    const tag = raw.trim().toLowerCase();
+    const tag = lowercase ? raw.trim().toLowerCase() : raw.trim();
     if (tag && !value.includes(tag)) {
       onChange([...value, tag]);
     }
