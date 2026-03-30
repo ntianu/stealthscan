@@ -190,6 +190,7 @@ model Application {
   coverLetter    String?           @db.Text
   customAnswers  Json?
   verifierReport Json?
+  jobAnalysis    Json?
   submittedAt    DateTime?
   responseAt     DateTime?
   responseType   String?
