@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@agenticdialectric.com";
+const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@stealthscan.app";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://stealthscan-git-claude-elastic-wescoff-thentianu.vercel.app";
 
 export interface DigestJob {
@@ -51,7 +51,7 @@ function buildHtml(p: DigestPayload): string {
         <!-- Header -->
         <tr>
           <td style="background:#6d28d9;padding:24px 32px;">
-            <p style="margin:0;color:#ddd6fe;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">Agentic Dialectic</p>
+            <p style="margin:0;color:#ddd6fe;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">Stealth Scan</p>
             <h1 style="margin:8px 0 0;color:#ffffff;font-size:22px;font-weight:700;">Your overnight scan results</h1>
           </td>
         </tr>
@@ -136,7 +136,7 @@ export async function sendDailyDigest(payload: DigestPayload): Promise<void> {
       : `You have ${payload.totalInQueue} application${payload.totalInQueue !== 1 ? "s" : ""} waiting in your queue`;
 
   await resend.emails.send({
-    from: `Agentic Dialectic <${FROM}>`,
+    from: `Stealth Scan <${FROM}>`,
     to: payload.to,
     subject,
     html: buildHtml(payload),
