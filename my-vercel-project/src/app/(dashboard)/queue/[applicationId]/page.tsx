@@ -61,6 +61,13 @@ export default async function ApplicationReviewPage({ params }: Props) {
               warnings?: string[];
             } | null
           }
+          jobAnalysis={application.jobAnalysis as {
+            roleSynthesis: string;
+            hiddenScorecard: { signal: string; translation: string; dealbreaker: boolean }[];
+            rankedBullets: { bulletId: string; content: string; relevanceScore: number; suggestedRewrite: string | null; whyItMatters: string }[];
+            coverLetterAngle: string;
+            keywords: string[];
+          } | null}
           resume={application.resume ? { name: application.resume.name, fileUrl: application.resume.fileUrl } : null}
           status={application.status}
           hasProfile={!!userProfile}

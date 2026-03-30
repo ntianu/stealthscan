@@ -6,6 +6,7 @@ import { answerCommonQuestions } from "@/lib/ai/answer-gen";
 import { verifyGeneratedText } from "@/lib/ai/verifier";
 import { selectBestResume, selectRelevantBullets } from "@/lib/ai/resume-select";
 import { scoreJob } from "@/lib/matching/scorer";
+import { analyzeJob, type JobIntel } from "@/lib/ai/job-intel";
 
 /**
  * POST /api/applications/[id]/generate
@@ -69,7 +70,35 @@ export async function POST(
     5
   );
 
-  // Generate cover letter
+  // Run job analysis first — this informs both bullet selection and cover letter
+  let jobIntel: JobIntel | null = null;
+  try {
+    jobIntel = await analyzeJob({
+      job: {
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+      },
+      userProfile: {
+        currentTitle: userProfile.currentTitle,
+        yearsExperience: userProfile.yearsExperience,
+        skills: userProfile.skills,
+        industries: userProfile.industries,
+      },
+      bullets: selectedBullets.map((b) => ({
+        id: b.id,
+        content: b.content,
+        competencyTags: b.competencyTags,
+        roleTags: b.roleTags,
+        proofStrength: b.proofStrength,
+      })),
+    });
+  } catch (err) {
+    console.warn("[generate] job analysis failed (non-fatal):", err);
+  }
+
+  // Generate cover letter (intel-informed if available)
   let coverLetterText = "";
   let tokensUsed = 0;
   try {
@@ -98,6 +127,7 @@ export async function POST(
         content: b.content,
         competencyTags: b.competencyTags,
       })),
+      jobIntel: jobIntel ?? undefined,
     });
     coverLetterText = result.text;
     tokensUsed = result.tokensUsed;
@@ -140,14 +170,13 @@ export async function POST(
   const fitResult = scoreJob(job, userProfile, preferredSeniorities);
 
   // Persist everything back to the application
-  // JSON.parse(JSON.stringify(...)) yields a plain object compatible with Prisma's Json type
   const updated = await db.application.update({
     where: { id },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: {
       coverLetter: coverLetterText,
       customAnswers: JSON.parse(JSON.stringify(customAnswers)),
       verifierReport: JSON.parse(JSON.stringify(verifierReport)),
+      jobAnalysis: jobIntel ? JSON.parse(JSON.stringify(jobIntel)) : undefined,
       resumeId: bestResume?.id ?? application.resumeId,
       fitScore: fitResult.score,
       fitExplanation: fitResult.explanation,
@@ -158,6 +187,7 @@ export async function POST(
     coverLetter: updated.coverLetter,
     customAnswers: updated.customAnswers,
     verifierReport: updated.verifierReport,
+    jobAnalysis: updated.jobAnalysis,
     resumeId: updated.resumeId,
     fitScore: updated.fitScore,
     fitExplanation: updated.fitExplanation,

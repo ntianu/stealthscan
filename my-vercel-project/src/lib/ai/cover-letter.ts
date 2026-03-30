@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Job, UserProfile, Bullet, Resume } from "@prisma/client";
+import type { JobIntel } from "@/lib/ai/job-intel";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -11,6 +12,7 @@ export interface CoverLetterInput {
   >;
   resume: Pick<Resume, "name" | "roleTags" | "domains" | "seniority">;
   selectedBullets: Pick<Bullet, "content" | "competencyTags">[];
+  jobIntel?: JobIntel;
 }
 
 export interface CoverLetterResult {
@@ -25,11 +27,19 @@ export interface CoverLetterResult {
 export async function generateCoverLetter(
   input: CoverLetterInput
 ): Promise<CoverLetterResult> {
-  const { job, userProfile, selectedBullets } = input;
+  const { job, userProfile, selectedBullets, jobIntel } = input;
 
   const bulletList = selectedBullets
     .map((b) => `• ${b.content}`)
     .join("\n");
+
+  // If we have intel, use rewritten bullets where available
+  const intelBulletList = jobIntel?.rankedBullets
+    ? jobIntel.rankedBullets
+        .slice(0, 5)
+        .map((b) => `• ${b.suggestedRewrite ?? b.content}`)
+        .join("\n")
+    : null;
 
   const systemPrompt = `You are a professional cover letter writer. Your ONLY job is to write a cover letter body using EXCLUSIVELY the facts provided below.
 
@@ -40,6 +50,15 @@ HARD RULES (violations will be caught by an automated verifier):
 4. Output ONLY the letter body—no "Dear Hiring Manager," header, no signature block.
 5. Maximum 3 paragraphs. Be specific and concise.
 6. Use first person ("I").`;
+
+  const intelSection = jobIntel
+    ? `
+## Strategic intel for this role (use this to shape the letter)
+Opening angle: ${jobIntel.coverLetterAngle}
+What the role really needs: ${jobIntel.roleSynthesis}
+Keywords to mirror verbatim: ${jobIntel.keywords.join(", ")}
+`
+    : "";
 
   const userMessage = `## Job to apply for
 Title: ${job.title}
@@ -54,8 +73,8 @@ Skills: ${userProfile.skills?.join(", ") || "Not specified"}
 Industries: ${userProfile.industries?.join(", ") || "Not specified"}
 
 ## My achievement bullets (use 2–3 of these)
-${bulletList || "No bullets provided—use only the profile facts above."}
-
+${intelBulletList ?? bulletList || "No bullets provided—use only the profile facts above."}
+${intelSection}
 Write the cover letter body now:`;
 
   const message = await client.messages.create({

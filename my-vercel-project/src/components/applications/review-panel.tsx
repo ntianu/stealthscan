@@ -11,6 +11,7 @@ import {
   CheckCircle2, XCircle, AlertCircle, FileText, Building2,
   MapPin, ExternalLink, Loader2, ThumbsUp, ThumbsDown,
   ClipboardCopy, Check, Sparkles, ChevronLeft, ChevronRight,
+  Brain, AlertTriangle, ArrowRight,
 } from "lucide-react";
 
 interface ApplyKit {
@@ -27,10 +28,33 @@ interface VerifierReport {
   warnings?: string[];
 }
 
+interface HiddenSignal {
+  signal: string;
+  translation: string;
+  dealbreaker: boolean;
+}
+
+interface RankedBullet {
+  bulletId: string;
+  content: string;
+  relevanceScore: number;
+  suggestedRewrite: string | null;
+  whyItMatters: string;
+}
+
+interface JobIntel {
+  roleSynthesis: string;
+  hiddenScorecard: HiddenSignal[];
+  rankedBullets: RankedBullet[];
+  coverLetterAngle: string;
+  keywords: string[];
+}
+
 interface GenerateResult {
   coverLetter: string | null;
   customAnswers: Record<string, string> | null;
   verifierReport: VerifierReport | null;
+  jobAnalysis: JobIntel | null;
   fitScore: number;
   fitExplanation: string;
   tokensUsed: number;
@@ -54,6 +78,7 @@ interface ReviewPanelProps {
   coverLetter: string | null;
   customAnswers: Record<string, string> | null;
   verifierReport: VerifierReport | null;
+  jobAnalysis: JobIntel | null;
   resume: { name: string; fileUrl: string } | null;
   status: string;
   hasProfile: boolean;
@@ -150,6 +175,7 @@ export function ReviewPanel({
   coverLetter: initialCoverLetter,
   customAnswers: initialCustomAnswers,
   verifierReport: initialVerifierReport,
+  jobAnalysis: initialJobAnalysis,
   resume,
   status: initialStatus,
   hasProfile,
@@ -162,6 +188,7 @@ export function ReviewPanel({
   const [coverLetter, setCoverLetter] = useState(initialCoverLetter ?? "");
   const [customAnswers, setCustomAnswers] = useState(initialCustomAnswers);
   const [verifierReport, setVerifierReport] = useState(initialVerifierReport);
+  const [jobIntel, setJobIntel] = useState<JobIntel | null>(initialJobAnalysis);
   const [fitScore, setFitScore] = useState(initialFitScore);
   const [fitExplanation, setFitExplanation] = useState(initialFitExplanation);
   const [approving, setApproving] = useState(false);
@@ -190,6 +217,7 @@ export function ReviewPanel({
       setCoverLetter(data.coverLetter ?? "");
       setCustomAnswers(data.customAnswers);
       setVerifierReport(data.verifierReport);
+      setJobIntel(data.jobAnalysis);
       setFitScore(data.fitScore);
       setFitExplanation(data.fitExplanation);
       toast.success("Cover letter ready");
@@ -344,6 +372,86 @@ export function ReviewPanel({
               {verifierReport.warnings?.map((w, i) => (
                 <p key={i} className="text-[10px] text-amber-400/80">• {w}</p>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Job Intel */}
+        {jobIntel && (
+          <Card className="border-violet-500/20 bg-violet-500/[0.03]">
+            <CardHeader className="pb-1.5 pt-3 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wide text-violet-400 flex items-center gap-1.5">
+                <Brain className="h-3.5 w-3.5" /> Job Intelligence
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-4">
+
+              {/* Role synthesis */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">What this role actually is</p>
+                <p className="text-xs text-foreground/80 leading-relaxed">{jobIntel.roleSynthesis}</p>
+              </div>
+
+              {/* Hidden scorecard */}
+              {jobIntel.hiddenScorecard.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Hidden scorecard</p>
+                  <div className="space-y-2">
+                    {jobIntel.hiddenScorecard.map((s, i) => (
+                      <div key={i} className="rounded-lg bg-muted/30 border border-border px-3 py-2 flex gap-2 items-start">
+                        {s.dealbreaker && <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />}
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground/90">"{s.signal}"</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                            <ArrowRight className="h-3 w-3 shrink-0" />{s.translation}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ranked bullets with rewrites */}
+              {jobIntel.rankedBullets.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Your bullets — ranked for this role</p>
+                  <div className="space-y-2">
+                    {jobIntel.rankedBullets.map((b, i) => (
+                      <div key={i} className="rounded-lg bg-muted/30 border border-border px-3 py-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-muted-foreground truncate">{b.whyItMatters}</span>
+                          <span className="text-[10px] font-bold text-violet-400 tabular-nums shrink-0">{Math.round(b.relevanceScore * 100)}%</span>
+                        </div>
+                        {b.suggestedRewrite ? (
+                          <>
+                            <p className="text-[11px] text-foreground/50 line-through leading-relaxed">{b.content}</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-xs text-foreground/90 leading-relaxed">{b.suggestedRewrite}</p>
+                              <CopyButton text={b.suggestedRewrite} />
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-foreground/80 leading-relaxed">{b.content}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Keywords */}
+              {jobIntel.keywords.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Mirror these keywords</p>
+                  <div className="flex flex-wrap gap-1">
+                    {jobIntel.keywords.map((kw) => (
+                      <span key={kw} className="rounded-full bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 text-[10px] text-violet-300">{kw}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </CardContent>
           </Card>
         )}
