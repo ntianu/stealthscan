@@ -73,7 +73,7 @@ Skills: ${userProfile.skills?.join(", ") || "Not specified"}
 Industries: ${userProfile.industries?.join(", ") || "Not specified"}
 
 ## My achievement bullets (use 2–3 of these)
-${intelBulletList ?? bulletList || "No bullets provided—use only the profile facts above."}
+${(intelBulletList ?? bulletList) || "No bullets provided—use only the profile facts above."}
 ${intelSection}
 Write the cover letter body now:`;
 
