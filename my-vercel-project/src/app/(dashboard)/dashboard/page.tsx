@@ -3,16 +3,18 @@ import { db } from "@/lib/db";
 import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScanButton } from "@/components/discover/scan-button";
 import {
   ClipboardList, Send, Calendar, CheckCircle2,
-  ArrowRight, FileText, Plus,
+  ArrowRight, FileText, Plus, TrendingUp, AlertTriangle, Radar,
 } from "lucide-react";
 import Link from "next/link";
-import { format, formatDistanceToNow, addDays, isBefore } from "date-fns";
+import { format, formatDistanceToNow, addDays, isBefore, subDays } from "date-fns";
 
 export default async function DashboardPage() {
   const user = await requireUser();
   const now = new Date();
+  const staleThreshold = subDays(now, 5);
 
   const [
     prepared,
@@ -21,6 +23,11 @@ export default async function DashboardPage() {
     offer,
     upcomingInterviews,
     recentApps,
+    lastJob,
+    staleCount,
+    responded,
+    rejected,
+    activeProfiles,
   ] = await Promise.all([
     db.application.count({ where: { userId: user.id, status: "PREPARED" } }),
     db.application.count({ where: { userId: user.id, status: "SUBMITTED" } }),
@@ -44,10 +51,28 @@ export default async function DashboardPage() {
         job: { select: { title: true, company: true } },
       },
     }),
+    db.job.findFirst({ orderBy: { fetchedAt: "desc" }, select: { fetchedAt: true } }),
+    db.application.count({
+      where: { userId: user.id, status: "PREPARED", updatedAt: { lt: staleThreshold } },
+    }),
+    db.application.count({ where: { userId: user.id, status: "RESPONDED" } }),
+    db.application.count({ where: { userId: user.id, status: "REJECTED" } }),
+    db.searchProfile.count({ where: { userId: user.id, active: true } }),
   ]);
 
   const inFlight = submitted + interviewing;
   const hasData = (prepared + inFlight + offer) > 0;
+
+  // Response rate: (interviews + offers) / total sent (excl. PREPARED)
+  const totalSent = submitted + interviewing + responded + offer + rejected;
+  const responseRate = totalSent >= 3
+    ? Math.round(((interviewing + offer) / totalSent) * 100)
+    : null;
+
+  // Next 6am scan
+  const nextScan = new Date(now);
+  nextScan.setHours(6, 0, 0, 0);
+  if (nextScan <= now) nextScan.setDate(nextScan.getDate() + 1);
 
   const statusBadge: Record<string, string> = {
     SUBMITTED:    "bg-emerald-500/15 text-emerald-400",
@@ -59,8 +84,25 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <Topbar title="Dashboard" description="Your job search at a glance" />
+      <Topbar
+        title="Dashboard"
+        description="Your job search at a glance"
+        action={<ScanButton />}
+      />
       <div className="p-6 space-y-5">
+
+        {/* ── Stale queue warning ──────────────────────────────────── */}
+        {staleCount > 0 && (
+          <Card className="border-orange-500/30 bg-orange-500/[0.05]">
+            <CardContent className="px-5 py-3 flex items-center gap-3">
+              <AlertTriangle className="h-4 w-4 text-orange-400 shrink-0" />
+              <p className="text-sm text-orange-300">
+                <span className="font-semibold">{staleCount} application{staleCount !== 1 ? "s" : ""}</span> in your queue {staleCount === 1 ? "has" : "have"} been waiting 5+ days — those jobs may have closed.{" "}
+                <Link href="/queue" className="underline hover:text-orange-200">Review now →</Link>
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* ── Primary action ───────────────────────────────────────── */}
         {prepared > 0 && (
@@ -74,7 +116,7 @@ export default async function DashboardPage() {
                       {prepared} application{prepared === 1 ? "" : "s"} waiting for review
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Click to review and submit
+                      Cover letters pre-generated — click to review and submit
                     </p>
                   </div>
                 </div>
@@ -84,12 +126,20 @@ export default async function DashboardPage() {
           </Link>
         )}
 
-        {/* ── 3 KPI cards ──────────────────────────────────────────── */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* ── KPI cards ────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { label: "In Queue",  value: prepared,  icon: ClipboardList, color: "text-amber-400",   href: "/queue" },
-            { label: "In Flight", value: inFlight,  icon: Send,          color: "text-emerald-400",  href: "/history" },
-            { label: "Offers",    value: offer,     icon: CheckCircle2,  color: "text-green-400",    href: "/history" },
+            { label: "In Queue",   value: prepared,  icon: ClipboardList, color: "text-amber-400",   href: "/queue" },
+            { label: "In Flight",  value: inFlight,  icon: Send,          color: "text-emerald-400",  href: "/history" },
+            { label: "Offers",     value: offer,     icon: CheckCircle2,  color: "text-green-400",    href: "/history" },
+            {
+              label: "Response Rate",
+              value: responseRate !== null ? `${responseRate}%` : "—",
+              icon: TrendingUp,
+              color: "text-violet-400",
+              href: "/history",
+              subtitle: responseRate === null ? "needs 3+ sent" : `${interviewing + offer} of ${totalSent} sent`,
+            },
           ].map((stat) => (
             <Card key={stat.label} className="hover:border-primary/30 transition-colors">
               <CardHeader className="flex flex-row items-center justify-between pb-1.5 pt-4 px-4">
@@ -100,7 +150,9 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-2xl font-bold text-foreground tabular-nums">{stat.value}</div>
-                {stat.value > 0 && (
+                {"subtitle" in stat && stat.subtitle ? (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{stat.subtitle}</p>
+                ) : stat.value > 0 && (
                   <Link href={stat.href} className="text-[11px] text-primary hover:underline mt-0.5 block">
                     View →
                   </Link>
@@ -108,6 +160,23 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* ── Scan status bar ──────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Radar className="h-3 w-3" />
+            {lastJob
+              ? <>Last scan: <span className="text-foreground">{formatDistanceToNow(lastJob.fetchedAt, { addSuffix: true })}</span></>
+              : "No scan run yet"}
+            {activeProfiles > 0 && (
+              <span className="ml-2 text-muted-foreground/60">·  {activeProfiles} active profile{activeProfiles !== 1 ? "s" : ""}</span>
+            )}
+          </span>
+          <span>
+            Next auto-scan: <span className="text-foreground">{format(nextScan, "h:mm a")}</span>
+            <span className="text-muted-foreground/60 ml-1">({formatDistanceToNow(nextScan)})</span>
+          </span>
         </div>
 
         {hasData ? (
@@ -198,24 +267,24 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-xs text-muted-foreground">
-                Welcome to StealthScan. Follow these steps to start finding and applying for jobs:
+                Welcome to Stealth Scan. Follow these steps to start finding and applying for jobs:
               </p>
               <ol className="list-decimal space-y-2 pl-4 text-xs text-muted-foreground">
                 <li>
-                  <strong className="text-foreground">Professional Profile</strong> — Add your skills and target roles in{" "}
+                  <strong className="text-foreground">User Profile</strong> — Add your skills and target roles in{" "}
                   <Link href="/settings" className="text-primary hover:underline">Settings</Link>.
                 </li>
                 <li>
-                  <strong className="text-foreground">Search Profiles</strong> — Configure filters in{" "}
-                  <Link href="/profiles" className="text-primary hover:underline">Search Profiles</Link>.
+                  <strong className="text-foreground">Search Profile</strong> — Configure job filters in{" "}
+                  <Link href="/profiles" className="text-primary hover:underline">Profiles</Link>.
                 </li>
                 <li>
                   <strong className="text-foreground">Resumes</strong> — Upload PDFs and tag them in{" "}
                   <Link href="/resumes" className="text-primary hover:underline">Resumes</Link>.
                 </li>
                 <li>
-                  <strong className="text-foreground">Discover</strong> — Click &quot;Run Scan&quot; or{" "}
-                  <Link href="/discover" className="text-primary hover:underline">add a job by URL</Link> to get started.
+                  <strong className="text-foreground">Discover</strong> — Click <strong className="text-foreground">Run Scan</strong> above or{" "}
+                  <Link href="/discover" className="text-primary hover:underline">add a job by URL</Link>.
                 </li>
               </ol>
               <div className="pt-1 flex gap-2">
