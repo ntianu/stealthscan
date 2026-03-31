@@ -152,7 +152,7 @@ export default async function DashboardPage() {
                 <div className="text-2xl font-bold text-foreground tabular-nums">{stat.value}</div>
                 {"subtitle" in stat && stat.subtitle ? (
                   <p className="text-[11px] text-muted-foreground mt-0.5">{stat.subtitle}</p>
-                ) : stat.value > 0 && (
+                ) : typeof stat.value === "number" && stat.value > 0 && (
                   <Link href={stat.href} className="text-[11px] text-primary hover:underline mt-0.5 block">
                     View →
                   </Link>
