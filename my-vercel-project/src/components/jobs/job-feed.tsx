@@ -132,7 +132,7 @@ interface JobFeedProps {
 
 export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedProps) {
   const router = useRouter();
-  const [minFit, setMinFit] = useState(0);
+  const [minFit, setMinFit] = useState(50);
   const [filterSource, setFilterSource] = useState<string[]>([]);
   const [filterRemote, setFilterRemote] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<"fit" | "date">("fit");
@@ -175,7 +175,7 @@ export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedPr
     return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
   }
 
-  const activeFilters = filterSource.length + filterRemote.length + (minFit > 0 ? 1 : 0);
+  const activeFilters = filterSource.length + filterRemote.length + (minFit !== 50 ? 1 : 0);
 
   return (
     <div className="space-y-3">
@@ -306,7 +306,7 @@ export function JobFeed({ initialJobs, hasProfile, hasSearchProfile }: JobFeedPr
               </p>
             )}
             {initialJobs.length > 0 && minFit > 0 && (
-              <Button variant="outline" size="sm" className="text-xs" onClick={() => setMinFit(0)}>Clear fit filter</Button>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setMinFit(50)}>Clear fit filter</Button>
             )}
           </CardContent>
         </Card>

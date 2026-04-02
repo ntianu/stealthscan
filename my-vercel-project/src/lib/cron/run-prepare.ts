@@ -88,6 +88,7 @@ export async function runPrepare(): Promise<PrepareResult> {
                 yearsExperience: user.userProfile.yearsExperience,
                 skills: user.userProfile.skills,
                 industries: user.userProfile.industries,
+                linkedinAbout: user.userProfile.linkedinAbout,
               },
               resume: {
                 name: selectedResume.name,
@@ -132,8 +133,8 @@ export async function runPrepare(): Promise<PrepareResult> {
       }
     }
 
-    // Send digest email for this user if anything was prepared
-    if (userPrepared > 0) {
+    // Send digest email for this user if anything was prepared and they haven't opted out
+    if (userPrepared > 0 && user.userProfile.digestEnabled !== false) {
       try {
         const totalInQueue = await db.application.count({
           where: { userId: user.id, status: "PREPARED" },

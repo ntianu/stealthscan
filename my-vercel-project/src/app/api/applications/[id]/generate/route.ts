@@ -85,6 +85,7 @@ export async function POST(
         yearsExperience: userProfile.yearsExperience,
         skills: userProfile.skills,
         industries: userProfile.industries,
+        linkedinAbout: userProfile.linkedinAbout,
       },
       bullets: selectedBullets.map((b) => ({
         id: b.id,
@@ -114,6 +115,7 @@ export async function POST(
         yearsExperience: userProfile.yearsExperience,
         skills: userProfile.skills,
         industries: userProfile.industries,
+        linkedinAbout: userProfile.linkedinAbout,
       },
       resume: bestResume
         ? {

@@ -103,6 +103,7 @@ export async function runAutoApply(userId: string): Promise<AutoPrepResult> {
           yearsExperience: userProfile.yearsExperience,
           skills: userProfile.skills,
           industries: userProfile.industries,
+          linkedinAbout: userProfile.linkedinAbout,
         },
         resume: bestResume
           ? { name: bestResume.name, roleTags: bestResume.roleTags, domains: bestResume.domains, seniority: bestResume.seniority }

@@ -36,6 +36,7 @@ export interface JobIntelInput {
     yearsExperience: number | null;
     skills: string[];
     industries: string[];
+    linkedinAbout?: string | null;
   };
   bullets: Array<{
     id: string;
@@ -129,6 +130,7 @@ Current title: ${userProfile.currentTitle ?? "Not specified"}
 Years experience: ${userProfile.yearsExperience ?? "Not specified"}
 Skills: ${userProfile.skills.join(", ") || "Not specified"}
 Industries: ${userProfile.industries.join(", ") || "Not specified"}
+${userProfile.linkedinAbout ? `LinkedIn bio:\n${userProfile.linkedinAbout}\n` : ""}
 
 ## Candidate's Achievement Bullets
 ${bulletList}

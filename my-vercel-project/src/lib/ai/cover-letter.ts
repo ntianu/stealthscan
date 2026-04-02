@@ -8,7 +8,7 @@ export interface CoverLetterInput {
   job: Pick<Job, "title" | "company" | "description" | "requirements">;
   userProfile: Pick<
     UserProfile,
-    "currentTitle" | "yearsExperience" | "skills" | "industries"
+    "currentTitle" | "yearsExperience" | "skills" | "industries" | "linkedinAbout"
   >;
   resume: Pick<Resume, "name" | "roleTags" | "domains" | "seniority">;
   selectedBullets: Pick<Bullet, "content" | "competencyTags">[];
@@ -71,6 +71,7 @@ Current title: ${userProfile.currentTitle ?? "Not specified"}
 Years of experience: ${userProfile.yearsExperience ?? "Not specified"}
 Skills: ${userProfile.skills?.join(", ") || "Not specified"}
 Industries: ${userProfile.industries?.join(", ") || "Not specified"}
+${userProfile.linkedinAbout ? `\nLinkedIn bio:\n${userProfile.linkedinAbout}\n` : ""}
 
 ## My achievement bullets (use 2–3 of these)
 ${(intelBulletList ?? bulletList) || "No bullets provided—use only the profile facts above."}
