@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -417,6 +417,19 @@ export function ReviewPanel({
   const isActionable = status === "PREPARED";
   const fitPct = Math.round(fitScore * 100);
   const fitColor = fitPct >= 70 ? "text-emerald-400" : fitPct >= 50 ? "text-amber-400" : "text-red-400";
+  const editTrackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fire-and-forget: record that the user opened this review panel
+  useEffect(() => {
+    fetch(`/api/applications/${applicationId}/open`, { method: "POST" }).catch(() => {});
+  }, [applicationId]);
+
+  const trackEdit = useCallback(() => {
+    if (editTrackTimer.current) clearTimeout(editTrackTimer.current);
+    editTrackTimer.current = setTimeout(() => {
+      fetch(`/api/applications/${applicationId}/track-edit`, { method: "POST" }).catch(() => {});
+    }, 2000);
+  }, [applicationId]);
 
   const goNext = useCallback(() => {
     if (nextId) router.push(`/queue/${nextId}`);
@@ -717,7 +730,7 @@ export function ReviewPanel({
                   ) : (
                     <Textarea
                       value={coverLetter}
-                      onChange={e => setCoverLetter(e.target.value)}
+                      onChange={e => { setCoverLetter(e.target.value); trackEdit(); }}
                       rows={12}
                       placeholder="No cover letter yet — click Generate."
                       className="text-sm leading-relaxed font-sans"

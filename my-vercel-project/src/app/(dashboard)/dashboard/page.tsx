@@ -7,6 +7,7 @@ import { ScanButton } from "@/components/discover/scan-button";
 import {
   ClipboardList, Send, Calendar, CheckCircle2,
   ArrowRight, FileText, Plus, TrendingUp, AlertTriangle, Radar,
+  BarChart3, Brain,
 } from "lucide-react";
 import Link from "next/link";
 import { format, formatDistanceToNow, addDays, isBefore, subDays } from "date-fns";
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
     responded,
     rejected,
     activeProfiles,
+    decisionData,
   ] = await Promise.all([
     db.application.count({ where: { userId: user.id, status: "PREPARED" } }),
     db.application.count({ where: { userId: user.id, status: "SUBMITTED" } }),
@@ -58,6 +60,21 @@ export default async function DashboardPage() {
     db.application.count({ where: { userId: user.id, status: "RESPONDED" } }),
     db.application.count({ where: { userId: user.id, status: "REJECTED" } }),
     db.searchProfile.count({ where: { userId: user.id, active: true } }),
+    // Decision intelligence data
+    db.application.findMany({
+      where: {
+        userId: user.id,
+        status: { in: ["SUBMITTED", "APPROVED", "REJECTED"] },
+      },
+      select: {
+        status: true,
+        confidenceBand: true,
+        decisionReason: true,
+        reviewOpenedAt: true,
+        reviewCompletedAt: true,
+        coverLetterEdited: true,
+      },
+    }),
   ]);
 
   const inFlight = submitted + interviewing;
@@ -68,6 +85,52 @@ export default async function DashboardPage() {
   const responseRate = totalSent >= 3
     ? Math.round(((interviewing + offer) / totalSent) * 100)
     : null;
+
+  // ── Decision Intelligence ────────────────────────────────────────
+  type DecisionRow = typeof decisionData[number];
+  const decided = decisionData.filter((d: DecisionRow) =>
+    d.status === "SUBMITTED" || d.status === "APPROVED"
+  );
+  const decisionTotal = decisionData.length;
+
+  // Approval rate by confidence band
+  const bandStats: Record<string, { approved: number; total: number }> = {};
+  for (const d of decisionData) {
+    const band = (d.confidenceBand as string | null) ?? "UNKNOWN";
+    if (!bandStats[band]) bandStats[band] = { approved: 0, total: 0 };
+    bandStats[band].total++;
+    if (d.status === "SUBMITTED" || d.status === "APPROVED") bandStats[band].approved++;
+  }
+
+  // Top rejection reasons
+  const reasonCounts: Record<string, number> = {};
+  for (const d of decisionData) {
+    if (d.decisionReason) {
+      reasonCounts[d.decisionReason] = (reasonCounts[d.decisionReason] ?? 0) + 1;
+    }
+  }
+  const topReasons = Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  // Average time-to-review (minutes)
+  const reviewTimes = decisionData
+    .filter((d: DecisionRow) => d.reviewOpenedAt && d.reviewCompletedAt)
+    .map((d: DecisionRow) =>
+      (d.reviewCompletedAt!.getTime() - d.reviewOpenedAt!.getTime()) / 60000
+    );
+  const avgReviewMinutes =
+    reviewTimes.length > 0
+      ? Math.round(reviewTimes.reduce((a: number, b: number) => a + b, 0) / reviewTimes.length)
+      : null;
+
+  // Cover letter edit rate
+  const editRate =
+    decided.length > 0
+      ? Math.round((decided.filter((d: DecisionRow) => d.coverLetterEdited).length / decided.length) * 100)
+      : null;
+
+  const showIntelligence = decisionTotal >= 3;
 
   // Next 6am scan
   const nextScan = new Date(now);
@@ -178,6 +241,92 @@ export default async function DashboardPage() {
             <span className="text-muted-foreground/60 ml-1">({formatDistanceToNow(nextScan)})</span>
           </span>
         </div>
+
+        {/* ── Decision Intelligence ────────────────────────────────── */}
+        {showIntelligence && (
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Brain className="h-3.5 w-3.5 text-violet-400" />
+                Decision Intelligence
+              </CardTitle>
+              <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/40" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {/* Total reviewed */}
+                <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Reviewed</p>
+                  <p className="text-xl font-bold text-foreground tabular-nums">{decisionTotal}</p>
+                </div>
+                {/* Approval rate */}
+                <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Approved</p>
+                  <p className="text-xl font-bold text-emerald-400 tabular-nums">
+                    {decisionTotal > 0 ? `${Math.round((decided.length / decisionTotal) * 100)}%` : "—"}
+                  </p>
+                </div>
+                {/* Avg review time */}
+                <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Avg review</p>
+                  <p className="text-xl font-bold text-foreground tabular-nums">
+                    {avgReviewMinutes !== null ? `${avgReviewMinutes}m` : "—"}
+                  </p>
+                </div>
+                {/* Edit rate */}
+                <div className="rounded-lg bg-muted/30 px-3 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Edited letters</p>
+                  <p className="text-xl font-bold text-foreground tabular-nums">
+                    {editRate !== null ? `${editRate}%` : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Confidence band breakdown */}
+              {Object.keys(bandStats).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-2">Approval by confidence band</p>
+                  <div className="space-y-1.5">
+                    {(["HIGH", "MEDIUM", "EXPLORATORY"] as const).map((band) => {
+                      const s = bandStats[band];
+                      if (!s) return null;
+                      const pct = Math.round((s.approved / s.total) * 100);
+                      const color = band === "HIGH" ? "bg-emerald-400" : band === "MEDIUM" ? "bg-amber-400" : "bg-blue-400";
+                      const label = band === "HIGH" ? "High" : band === "MEDIUM" ? "Medium" : "Exploratory";
+                      return (
+                        <div key={band} className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground w-20 shrink-0">{label}</span>
+                          <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
+                            <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground tabular-nums w-12 text-right">
+                            {s.approved}/{s.total} ({pct}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Top rejection reasons */}
+              {topReasons.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mb-2">Top skip reasons</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {topReasons.map(([reason, count]) => (
+                      <span key={reason}
+                        className="rounded-full border border-white/[0.08] bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                        {reason}
+                        <span className="ml-1.5 text-muted-foreground/50 tabular-nums">{count}×</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {hasData ? (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
