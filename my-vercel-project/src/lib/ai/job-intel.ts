@@ -16,12 +16,17 @@ export interface RankedBullet {
   whyItMatters: string;           // Which JD requirement this addresses
 }
 
+export type ConfidenceBand = "HIGH" | "MEDIUM" | "EXPLORATORY";
+
 export interface JobIntel {
-  roleSynthesis: string;      // What this role really is (not just the title)
+  roleSynthesis: string;          // What this role really is (not just the title)
   hiddenScorecard: HiddenSignal[];
   rankedBullets: RankedBullet[];
-  coverLetterAngle: string;   // Strategic opening hook for the letter
-  keywords: string[];         // Exact phrases from JD to mirror
+  coverLetterAngle: string;       // Strategic opening hook for the letter
+  keywords: string[];             // Exact phrases from JD to mirror
+  confidenceBand: ConfidenceBand; // Overall opportunity confidence
+  rationale: string;              // 1-2 sentence case for why this is worth the user's time
+  risks: string | null;           // 1 sentence risk flag, null if clean
 }
 
 export interface JobIntelInput {
@@ -96,8 +101,21 @@ const ANALYSIS_TOOL: Anthropic.Tool = {
         items: { type: "string" },
         description: "5–8 exact phrases from the JD the candidate should mirror verbatim in their materials",
       },
+      confidenceBand: {
+        type: "string",
+        enum: ["HIGH", "MEDIUM", "EXPLORATORY"],
+        description: "HIGH: strong fit, matches goals and criteria. MEDIUM: worth considering with known tradeoffs. EXPLORATORY: uncertain fit, notable gaps or unknowns.",
+      },
+      rationale: {
+        type: "string",
+        description: "1–2 sentences on why this opportunity is worth the candidate's time, grounded in their goals and this role's specifics. Be direct and honest.",
+      },
+      risks: {
+        type: "string",
+        description: "1 sentence flagging the most significant risk, gap, or concern. null if there are no meaningful concerns.",
+      },
     },
-    required: ["roleSynthesis", "hiddenScorecard", "rankedBullets", "coverLetterAngle", "keywords"],
+    required: ["roleSynthesis", "hiddenScorecard", "rankedBullets", "coverLetterAngle", "keywords", "confidenceBand", "rationale"],
   },
 };
 

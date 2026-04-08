@@ -187,6 +187,12 @@ export async function POST(
       resumeId: bestResume?.id ?? application.resumeId,
       fitScore: fitResult.score,
       fitExplanation: fitResult.explanation,
+      // v2 — persist intelligence fields when available
+      ...(jobIntel && {
+        confidenceBand: jobIntel.confidenceBand,
+        rationale: jobIntel.rationale,
+        risks: jobIntel.risks ?? null,
+      }),
     },
   });
 
@@ -198,6 +204,9 @@ export async function POST(
     resumeId: updated.resumeId,
     fitScore: updated.fitScore,
     fitExplanation: updated.fitExplanation,
+    confidenceBand: updated.confidenceBand,
+    rationale: updated.rationale,
+    risks: updated.risks,
     tokensUsed,
   });
 }

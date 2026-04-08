@@ -89,10 +89,12 @@ export interface ResumePatchInput {
     competencyTags: string[];
     proofStrength: number;
   }>;
+  /** Compiled career context from assembleContext() — optional */
+  careerContext?: string;
 }
 
 export async function generateResumePack(input: ResumePatchInput): Promise<ResumePack> {
-  const { job, userProfile, bullets } = input;
+  const { job, userProfile, bullets, careerContext } = input;
 
   const bulletList =
     bullets.length > 0
@@ -131,7 +133,7 @@ LinkedIn bio: ${userProfile.linkedinAbout ?? "Not provided"}
 
 ## Achievement Bullets (all available — pick the 6–8 most relevant)
 ${bulletList}
-
+${careerContext ? `\n## Career Context (use to match voice, positioning, and experience emphasis)\n${careerContext}\n` : ""}
 Rules:
 - Never invent metrics, companies, or outcomes
 - Rewrite bullets using JD language while keeping facts intact
