@@ -45,6 +45,8 @@ export interface JobIntelInput {
     roleTags: string[];
     proofStrength: number;
   }>;
+  /** Compiled career context block from assembleContext() — optional */
+  careerContext?: string;
 }
 
 const ANALYSIS_TOOL: Anthropic.Tool = {
@@ -100,18 +102,22 @@ const ANALYSIS_TOOL: Anthropic.Tool = {
 };
 
 export async function analyzeJob(input: JobIntelInput): Promise<JobIntel> {
-  const { job, userProfile, bullets } = input;
+  const { job, userProfile, bullets, careerContext } = input;
 
   const bulletList = bullets.length > 0
     ? bullets.map((b) => `[${b.id}] ${b.content} (tags: ${b.competencyTags.join(", ")})`).join("\n")
     : "No bullets provided.";
+
+  const contextBlock = careerContext
+    ? `\n\n## Candidate's Career Context (use to interpret goals, decision rules, and company preferences)\n${careerContext}\n`
+    : "";
 
   const message = await client.messages.create({
     model: "claude-opus-4-6",
     max_tokens: 2000,
     tools: [ANALYSIS_TOOL],
     tool_choice: { type: "any" },
-    system: "You are a senior recruiter and career strategist who reads job descriptions with deep pattern recognition. Your job is to decode what a company is really asking for — not just what they wrote — and map that against a candidate's specific experience.",
+    system: "You are a senior recruiter and career strategist who reads job descriptions with deep pattern recognition. Your job is to decode what a company is really asking for — not just what they wrote — and map that against a candidate's specific experience, goals, and decision criteria.",
     messages: [
       {
         role: "user",
@@ -134,7 +140,7 @@ ${userProfile.linkedinAbout ? `LinkedIn bio:\n${userProfile.linkedinAbout}\n` : 
 
 ## Candidate's Achievement Bullets
 ${bulletList}
-
+${contextBlock}
 Produce the analysis now.`,
       },
     ],

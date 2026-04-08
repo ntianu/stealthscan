@@ -7,20 +7,16 @@ import {
   LayoutDashboard,
   Search,
   ClipboardList,
-  History,
-  FileText,
+  Brain,
   Settings,
-  Target,
 } from "lucide-react";
 
 const navItems = [
-  { label: "Dashboard",       href: "/dashboard", icon: LayoutDashboard },
-  { label: "Discover",        href: "/discover",  icon: Search },
-  { label: "Queue",           href: "/queue",     icon: ClipboardList },
-  { label: "History",         href: "/history",   icon: History },
-  { label: "Resumes",         href: "/resumes",   icon: FileText },
-  { label: "Search Profiles", href: "/profiles",  icon: Target },
-  { label: "Settings",        href: "/settings",  icon: Settings },
+  { label: "Dashboard",      href: "/dashboard",      icon: LayoutDashboard },
+  { label: "Queue",          href: "/queue",           icon: ClipboardList },
+  { label: "Discover",       href: "/discover",        icon: Search },
+  { label: "Career Context", href: "/career-context",  icon: Brain },
+  { label: "Settings",       href: "/settings",        icon: Settings },
 ];
 
 export function Sidebar() {
@@ -71,7 +67,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="px-4 py-3 border-t border-white/[0.06]">
         <p className="text-[9px] font-medium tracking-widest uppercase text-muted-foreground/50">
-          v1.0 beta
+          v2.0 beta
         </p>
       </div>
     </aside>

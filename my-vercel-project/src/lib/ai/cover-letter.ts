@@ -13,6 +13,8 @@ export interface CoverLetterInput {
   resume: Pick<Resume, "name" | "roleTags" | "domains" | "seniority">;
   selectedBullets: Pick<Bullet, "content" | "competencyTags">[];
   jobIntel?: JobIntel;
+  /** Compiled career context block from assembleContext() — optional */
+  careerContext?: string;
 }
 
 export interface CoverLetterResult {
@@ -27,7 +29,7 @@ export interface CoverLetterResult {
 export async function generateCoverLetter(
   input: CoverLetterInput
 ): Promise<CoverLetterResult> {
-  const { job, userProfile, selectedBullets, jobIntel } = input;
+  const { job, userProfile, selectedBullets, jobIntel, careerContext } = input;
 
   const bulletList = selectedBullets
     .map((b) => `• ${b.content}`)
@@ -41,6 +43,10 @@ export async function generateCoverLetter(
         .join("\n")
     : null;
 
+  const voiceInstruction = careerContext
+    ? "\n7. Match the candidate's writing voice and style as described in the career context below. Never override it with generic corporate language."
+    : "";
+
   const systemPrompt = `You are a professional cover letter writer. Your ONLY job is to write a cover letter body using EXCLUSIVELY the facts provided below.
 
 HARD RULES (violations will be caught by an automated verifier):
@@ -49,7 +55,7 @@ HARD RULES (violations will be caught by an automated verifier):
 3. Do NOT use the word "passionate" or any hollow filler phrase.
 4. Output ONLY the letter body—no "Dear Hiring Manager," header, no signature block.
 5. Maximum 3 paragraphs. Be specific and concise.
-6. Use first person ("I").`;
+6. Use first person ("I").${voiceInstruction}`;
 
   const intelSection = jobIntel
     ? `
@@ -58,6 +64,10 @@ Opening angle: ${jobIntel.coverLetterAngle}
 What the role really needs: ${jobIntel.roleSynthesis}
 Keywords to mirror verbatim: ${jobIntel.keywords.join(", ")}
 `
+    : "";
+
+  const contextBlock = careerContext
+    ? `\n## Career Context (use to match voice, style, and positioning)\n${careerContext}\n`
     : "";
 
   const userMessage = `## Job to apply for
@@ -75,7 +85,7 @@ ${userProfile.linkedinAbout ? `\nLinkedIn bio:\n${userProfile.linkedinAbout}\n` 
 
 ## My achievement bullets (use 2–3 of these)
 ${(intelBulletList ?? bulletList) || "No bullets provided—use only the profile facts above."}
-${intelSection}
+${intelSection}${contextBlock}
 Write the cover letter body now:`;
 
   const message = await client.messages.create({

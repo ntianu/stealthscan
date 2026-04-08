@@ -64,20 +64,37 @@ enum ApplicationStatus {
   OFFER
 }
 
+enum ConfidenceBand {
+  HIGH
+  MEDIUM
+  EXPLORATORY
+}
+
+enum ContextDocumentType {
+  career_strategy
+  positioning
+  experience_library
+  decision_rules
+  writing_voice
+  target_companies
+  decision_log
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id             String          @id @default(cuid())
-  clerkId        String          @unique
-  email          String          @unique
-  name           String?
-  userProfile    UserProfile?
-  searchProfiles SearchProfile[]
-  resumes        Resume[]
-  bullets        Bullet[]
-  applications   Application[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id               String            @id @default(cuid())
+  clerkId          String            @unique
+  email            String            @unique
+  name             String?
+  userProfile      UserProfile?
+  searchProfiles   SearchProfile[]
+  resumes          Resume[]
+  bullets          Bullet[]
+  applications     Application[]
+  contextDocuments ContextDocument[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model UserProfile {
@@ -199,11 +216,45 @@ model Application {
   notes          String?           @db.Text
   interviewDate  DateTime?
   proof          ApplicationProof?
+  // v2 — confidence + rationale
+  confidenceBand    ConfidenceBand?
+  rationale         String?         @db.Text
+  risks             String?         @db.Text
+  // v2 — decision memory
+  decisionReason    String?
+  savedForLater     Boolean         @default(false)
+  aiRecommendation  String?
+  // v2 — evaluation instrumentation
+  reviewOpenedAt    DateTime?
+  reviewCompletedAt DateTime?
+  coverLetterEdited Boolean         @default(false)
+  editCount         Int             @default(0)
+  // v2 — expanded scoring dimensions
+  industryScore     Float?
+  companyScore      Float?
+  decisionRuleScore Float?
+  trajectoryScore   Float?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
   @@index([userId, status])
   @@index([jobId])
+}
+
+model ContextDocument {
+  id         String              @id @default(cuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       ContextDocumentType
+  title      String
+  content    String              @db.Text
+  compiled   String?             @db.Text
+  compiledAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
 }
 
 model ApplicationProof {

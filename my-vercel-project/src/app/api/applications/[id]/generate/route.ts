@@ -7,6 +7,7 @@ import { verifyGeneratedText } from "@/lib/ai/verifier";
 import { selectBestResume, selectRelevantBullets } from "@/lib/ai/resume-select";
 import { scoreJob } from "@/lib/matching/scorer";
 import { analyzeJob, type JobIntel } from "@/lib/ai/job-intel";
+import { assembleContext, jobIntelSlices, coverLetterSlices } from "@/lib/context/assemble";
 
 /**
  * POST /api/applications/[id]/generate
@@ -42,11 +43,13 @@ export async function POST(
   }
 
 
-  // Load user profile + resumes + bullets
-  const [userProfile, resumes, bullets] = await Promise.all([
+  // Load user profile + resumes + bullets + career context in parallel
+  const [userProfile, resumes, bullets, intelContext, coverContext] = await Promise.all([
     db.userProfile.findUnique({ where: { userId: user.id } }),
     db.resume.findMany({ where: { userId: user.id } }),
     db.bullet.findMany({ where: { userId: user.id } }),
+    assembleContext(user.id, jobIntelSlices()),
+    assembleContext(user.id, coverLetterSlices()),
   ]);
 
   if (!userProfile) {
@@ -94,6 +97,7 @@ export async function POST(
         roleTags: b.roleTags,
         proofStrength: b.proofStrength,
       })),
+      careerContext: intelContext || undefined,
     });
   } catch (err) {
     console.warn("[generate] job analysis failed (non-fatal):", err);
@@ -130,6 +134,7 @@ export async function POST(
         competencyTags: b.competencyTags,
       })),
       jobIntel: jobIntel ?? undefined,
+      careerContext: coverContext || undefined,
     });
     coverLetterText = result.text;
     tokensUsed = result.tokensUsed;
