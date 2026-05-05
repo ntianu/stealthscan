@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
+const BULLET_CATEGORIES = ["achievement","leadership","technical","cross_functional","growth","stakeholder","data_driven","operational"] as const;
+
 const updateSchema = z.object({
   content: z.string().min(1).optional(),
   competencyTags: z.array(z.string()).optional(),
@@ -10,6 +12,8 @@ const updateSchema = z.object({
   roleTags: z.array(z.string()).optional(),
   seniority: z.enum(["INTERN","JUNIOR","MID","SENIOR","LEAD","EXECUTIVE"]).optional(),
   proofStrength: z.number().min(1).max(5).optional(),
+  category: z.enum(BULLET_CATEGORIES).nullable().optional(),
+  context: z.string().nullable().optional(),
 });
 
 export async function PUT(

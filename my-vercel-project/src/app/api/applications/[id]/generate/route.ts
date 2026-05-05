@@ -193,6 +193,8 @@ export async function POST(
         rationale: jobIntel.rationale,
         risks: jobIntel.risks ?? null,
       }),
+      // bullet library — record which bullets powered this application
+      selectedBulletIds: selectedBullets.map((b) => b.id),
     },
   });
 

@@ -5,9 +5,51 @@ import { generateResumePack } from "@/lib/ai/resume-pack";
 import { assembleContext, resumePackSlices } from "@/lib/context/assemble";
 
 /**
+ * Normalize a job title to a stable role-family key for BulletVariant storage.
+ * e.g. "Senior Product Manager — Growth" → "product manager"
+ */
+function normalizeRoleFamily(title: string): string {
+  const stripped = title
+    .toLowerCase()
+    .replace(/[—–-].+$/, "") // drop subtitle after dash/em-dash
+    .replace(
+      /\b(senior|sr\.?|lead|staff|principal|junior|jr\.?|associate|assoc\.?|head of|vp of|vp,?|vice president(?: of)?|director(?: of)?|chief|founding?)\b/gi,
+      ""
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return (stripped || title.toLowerCase()).slice(0, 60);
+}
+
+/**
+ * Find a bullet in the lookup map by matching AI's "original" text.
+ * The AI may return the bullet with or without a number prefix / [tags: ...] suffix.
+ */
+function findBulletId(
+  original: string,
+  map: Map<string, string>
+): string | null {
+  const clean = original.trim();
+  if (map.has(clean)) return map.get(clean)!;
+
+  const stripped = clean
+    .replace(/^\d+\.\s+/, "")            // strip "1. " prefix
+    .replace(/\s+\[tags:[^\]]*\]$/, "")  // strip " [tags: ...]" suffix
+    .trim();
+
+  if (map.has(stripped)) return map.get(stripped)!;
+
+  // Fuzzy: original contains the bullet content
+  for (const [content, id] of map) {
+    if (original.includes(content)) return id;
+  }
+  return null;
+}
+
+/**
  * POST /api/applications/[id]/resume-pack
- * Generates a tailored resume pack for this job and returns it.
- * Does not persist — content is copy-pasteable by the user.
+ * Generates a tailored resume pack for this job.
+ * Saves AI rewrites as BulletVariants and tracks selectedBulletIds on the application.
  */
 export async function POST(
   _req: NextRequest,
@@ -62,12 +104,70 @@ export async function POST(
       industries: userProfile.industries,
     },
     bullets: bullets.map((b) => ({
+      id: b.id,
       content: b.content,
       competencyTags: b.competencyTags,
       proofStrength: b.proofStrength,
     })),
     careerContext: careerContext || undefined,
   });
+
+  // ── Persist variants + track selected bullets (non-fatal) ──────────────────
+  try {
+    const contentToId = new Map(bullets.map((b) => [b.content.trim(), b.id]));
+    const roleFamily = normalizeRoleFamily(job.title);
+    const selectedIds: string[] = [];
+
+    await Promise.allSettled(
+      pack.bullets.map(async (item) => {
+        const bulletId = findBulletId(item.original, contentToId);
+        if (!bulletId) return;
+
+        selectedIds.push(bulletId);
+
+        // Only overwrite if not yet approved by the user
+        const existing = await db.bulletVariant.findUnique({
+          where: { bulletId_roleFamily: { bulletId, roleFamily } },
+          select: { approved: true },
+        });
+
+        if (!existing || !existing.approved) {
+          await db.bulletVariant.upsert({
+            where: { bulletId_roleFamily: { bulletId, roleFamily } },
+            create: {
+              bulletId,
+              roleFamily,
+              content: item.rewritten,
+              source: "AI_GENERATED",
+              applicationId: id,
+            },
+            update: {
+              content: item.rewritten,
+              source: "AI_GENERATED",
+              applicationId: id,
+              approved: false,
+            },
+          });
+        }
+
+        // Increment use counter
+        await db.bullet.update({
+          where: { id: bulletId },
+          data: { useCount: { increment: 1 }, lastUsedAt: new Date() },
+        });
+      })
+    );
+
+    const uniqueIds = [...new Set(selectedIds)];
+    if (uniqueIds.length > 0) {
+      await db.application.update({
+        where: { id },
+        data: { selectedBulletIds: uniqueIds },
+      });
+    }
+  } catch (err) {
+    console.warn("[resume-pack] failed to persist variants:", err);
+  }
 
   return NextResponse.json(pack);
 }

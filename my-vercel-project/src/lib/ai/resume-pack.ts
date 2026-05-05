@@ -85,6 +85,8 @@ export interface ResumePatchInput {
     industries: string[];
   };
   bullets: Array<{
+    /** Bullet DB id — passed through for variant matching, not sent to AI */
+    id?: string;
     content: string;
     competencyTags: string[];
     proofStrength: number;

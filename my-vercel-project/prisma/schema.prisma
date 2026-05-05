@@ -80,6 +80,22 @@ enum ContextDocumentType {
   decision_log
 }
 
+enum BulletCategory {
+  achievement
+  leadership
+  technical
+  cross_functional
+  growth
+  stakeholder
+  data_driven
+  operational
+}
+
+enum VariantSource {
+  AI_GENERATED
+  USER_EDITED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -182,17 +198,40 @@ model Resume {
 }
 
 model Bullet {
-  id             String    @id @default(cuid())
+  id             String          @id @default(cuid())
   userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content        String    @db.Text
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content        String          @db.Text
   competencyTags String[]
   industryTags   String[]
   roleTags       String[]
   seniority      Seniority
-  proofStrength  Int       @default(3)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  proofStrength  Int             @default(3)
+  // v2 — bullet library enrichment
+  category       BulletCategory?
+  context        String?         @db.Text
+  useCount       Int             @default(0)
+  winRate        Float?
+  lastUsedAt     DateTime?
+  variants       BulletVariant[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model BulletVariant {
+  id            String        @id @default(cuid())
+  bulletId      String
+  bullet        Bullet        @relation(fields: [bulletId], references: [id], onDelete: Cascade)
+  roleFamily    String
+  content       String        @db.Text
+  source        VariantSource @default(AI_GENERATED)
+  approved      Boolean       @default(false)
+  applicationId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([bulletId, roleFamily])
+  @@index([bulletId])
 }
 
 model Application {
@@ -234,6 +273,8 @@ model Application {
   companyScore      Float?
   decisionRuleScore Float?
   trajectoryScore   Float?
+  // bullet library — which bullets powered this application
+  selectedBulletIds String[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
