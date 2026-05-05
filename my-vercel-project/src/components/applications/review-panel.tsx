@@ -12,6 +12,7 @@ import {
   MapPin, ExternalLink, Loader2, ThumbsUp,
   ClipboardCopy, Check, Sparkles, ChevronLeft, ChevronRight,
   AlertTriangle, ArrowRight, Bookmark, RefreshCw,
+  Download, FileType,
 } from "lucide-react";
 import type { ResumePack } from "@/lib/ai/resume-pack";
 
@@ -267,6 +268,7 @@ function ResumePackSection({ applicationId }: { applicationId: string }) {
   const [pack, setPack] = useState<ResumePack | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<"docx" | "pdf" | null>(null);
 
   const generate = async () => {
     setGenerating(true);
@@ -280,6 +282,55 @@ function ResumePackSection({ applicationId }: { applicationId: string }) {
       setError("Something went wrong. Try again.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const downloadExport = async (format: "docx" | "pdf") => {
+    if (!pack) return;
+    setDownloading(format);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/export/${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pack }),
+      });
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({ error: "Export failed" }));
+        toast.error((msg as { error?: string }).error ?? "Export failed");
+        return;
+      }
+
+      // Surface parser confidence so users know if the master parsed cleanly.
+      const confidence = res.headers.get("X-Resume-Parse-Confidence");
+      const unmatched = Number(res.headers.get("X-Resume-Bullets-Unmatched") ?? 0);
+      if (confidence === "low") {
+        toast.warning(
+          "Master resume parsed with low confidence. Review the output before submitting."
+        );
+      } else if (unmatched > 0) {
+        toast.message(
+          `${unmatched} AI rewrite${unmatched === 1 ? "" : "s"} couldn't be matched to a master bullet — they appear in the Highlights section.`
+        );
+      }
+
+      const filename =
+        res.headers
+          .get("Content-Disposition")
+          ?.match(/filename="([^"]+)"/)?.[1] ?? `resume.${format}`;
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(`Download failed: ${String(err)}`);
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -359,15 +410,42 @@ function ResumePackSection({ applicationId }: { applicationId: string }) {
         </div>
       )}
 
-      <Button
-        size="sm" variant="ghost"
-        className="text-xs text-muted-foreground gap-1.5"
-        onClick={generate}
-        disabled={generating}
-      >
-        {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-        Regenerate
-      </Button>
+      {/* Download as DOCX / PDF */}
+      <div className="border-t border-white/[0.06] pt-4">
+        <SectionLabel>Download tailored resume</SectionLabel>
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Combines this pack with your master resume into a complete, formatted file.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm" variant="outline"
+            className="text-xs gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+            onClick={() => downloadExport("docx")}
+            disabled={!!downloading || generating}
+          >
+            {downloading === "docx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            {downloading === "docx" ? "Building DOCX…" : "Download .docx"}
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            className="text-xs gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+            onClick={() => downloadExport("pdf")}
+            disabled={!!downloading || generating}
+          >
+            {downloading === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileType className="h-3.5 w-3.5" />}
+            {downloading === "pdf" ? "Building PDF…" : "Download .pdf"}
+          </Button>
+          <Button
+            size="sm" variant="ghost"
+            className="text-xs text-muted-foreground gap-1.5"
+            onClick={generate}
+            disabled={generating || !!downloading}
+          >
+            {generating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Regenerate pack
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
