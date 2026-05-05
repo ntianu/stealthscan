@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { buildMergedResume, ExportError } from "@/lib/export/pipeline";
+import { buildExportArtifact, ExportError } from "@/lib/export/pipeline";
 import { renderResumeDocx } from "@/lib/export/render-docx";
+import { renderResumeDocxEdit } from "@/lib/export/render-docx-edit";
 import type { ResumePackInput } from "@/lib/export/types";
 
 export const runtime = "nodejs";
@@ -10,12 +11,11 @@ export const maxDuration = 60;
 /**
  * POST /api/applications/[id]/export/docx
  *
- * Body (all optional):
- *   { pack?: ResumePackInput }
+ * Body (all optional): { pack?: ResumePackInput }
  *
- * Returns: a `.docx` file. If `pack` is provided, the AI step is skipped
- * (cheap path). Otherwise the endpoint regenerates the pack via Anthropic
- * before merging.
+ * Returns: a `.docx` file. When the master is a DOCX, we surgically edit
+ * the original to preserve the user's exact layout. When the master is a
+ * PDF, we render fresh into a clean template.
  */
 export async function POST(
   req: NextRequest,
@@ -33,10 +33,36 @@ export async function POST(
   }
 
   try {
-    const merged = await buildMergedResume({ userId: user.id, applicationId: id, pack });
-    const buffer = await renderResumeDocx(merged.resume);
+    const artifact = await buildExportArtifact({
+      userId: user.id,
+      applicationId: id,
+      pack,
+      preferEdit: true, // DOCX export prefers surgical edit when master is DOCX
+    });
 
-    const filename = `${merged.filenameStem || "resume"}.docx`;
+    let buffer: Buffer;
+    let parseConfidence = "high";
+    let bulletsApplied = 0;
+    let bulletsUnmatched = 0;
+    let editMode = false;
+
+    if (artifact.kind === "edit") {
+      const result = await renderResumeDocxEdit(
+        artifact.originalBuffer,
+        artifact.resolvedPack
+      );
+      buffer = result.buffer;
+      bulletsApplied = result.appliedBulletCount;
+      bulletsUnmatched = result.unmatchedBullets.length;
+      editMode = true;
+    } else {
+      buffer = await renderResumeDocx(artifact.merged.resume);
+      parseConfidence = artifact.merged.resume.meta.parseConfidence;
+      bulletsApplied = artifact.merged.appliedBullets.length;
+      bulletsUnmatched = artifact.merged.unmatchedBullets.length;
+    }
+
+    const filename = `${artifact.filenameStem || "resume"}.docx`;
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -46,9 +72,11 @@ export async function POST(
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Content-Length": String(buffer.byteLength),
         "Cache-Control": "no-store",
-        "X-Resume-Parse-Confidence": merged.resume.meta.parseConfidence,
-        "X-Resume-Bullets-Applied": String(merged.appliedBullets.length),
-        "X-Resume-Bullets-Unmatched": String(merged.unmatchedBullets.length),
+        "X-Resume-Master-Format": artifact.masterFormat,
+        "X-Resume-Render-Mode": editMode ? "edit" : "rebuild",
+        "X-Resume-Parse-Confidence": parseConfidence,
+        "X-Resume-Bullets-Applied": String(bulletsApplied),
+        "X-Resume-Bullets-Unmatched": String(bulletsUnmatched),
       },
     });
   } catch (err) {

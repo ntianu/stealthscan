@@ -30,13 +30,13 @@ export function ResumeUploader() {
     const f = e.target.files?.[0];
     if (f) {
       setFile(f);
-      if (!name) setName(f.name.replace(/\.pdf$/i, ""));
+      if (!name) setName(f.name.replace(/\.(pdf|docx)$/i, ""));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) { toast.error("Please select a PDF file"); return; }
+    if (!file) { toast.error("Please select a PDF or DOCX file"); return; }
     if (!name.trim()) { toast.error("Please enter a name for this resume"); return; }
 
     setUploading(true);
@@ -77,7 +77,7 @@ export function ResumeUploader() {
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
       {/* File picker */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Select PDF</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Select PDF or DOCX</CardTitle></CardHeader>
         <CardContent>
           <label className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.04]">
             {file ? (
@@ -89,11 +89,11 @@ export function ResumeUploader() {
             ) : (
               <>
                 <Upload className="h-10 w-10 text-muted-foreground/50" />
-                <span className="font-medium text-muted-foreground">Click to upload PDF</span>
-                <span className="text-xs text-muted-foreground/70">Max 4 MB</span>
+                <span className="font-medium text-muted-foreground">Click to upload PDF or DOCX</span>
+                <span className="text-xs text-muted-foreground/70">Max 4 MB · DOCX preserves your exact layout when exporting</span>
               </>
             )}
-            <input type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
+            <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={handleFileChange} />
           </label>
         </CardContent>
       </Card>

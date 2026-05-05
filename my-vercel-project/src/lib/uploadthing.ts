@@ -4,7 +4,14 @@ import { auth } from "@clerk/nextjs/server";
 const f = createUploadthing();
 
 export const ourFileRouter = {
-  resumeUploader: f({ pdf: { maxFileSize: "4MB", maxFileCount: 1 } })
+  resumeUploader: f({
+    pdf: { maxFileSize: "4MB", maxFileCount: 1 },
+    // DOCX support added in Phase B of the export pipeline
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+  })
     .middleware(async () => {
       const { userId } = await auth();
       if (!userId) throw new Error("Unauthorized");

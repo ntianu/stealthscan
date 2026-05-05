@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { buildMergedResume, ExportError } from "@/lib/export/pipeline";
+import { buildExportArtifact, ExportError } from "@/lib/export/pipeline";
 import { renderResumePdf } from "@/lib/export/render-pdf";
 import type { ResumePackInput } from "@/lib/export/types";
 
@@ -10,12 +10,11 @@ export const maxDuration = 60;
 /**
  * POST /api/applications/[id]/export/pdf
  *
- * Body (all optional):
- *   { pack?: ResumePackInput }
+ * Body (all optional): { pack?: ResumePackInput }
  *
- * Returns: a `.pdf` file. PDF rendering uses Playwright; on serverless hosts
- * lacking a chromium binary, this will return 500 with a clear error message
- * (see render-pdf.ts).
+ * PDF rendering always goes through the rebuild path: even when the master
+ * is DOCX, we parse to ResumeStructure and render a fresh PDF rather than
+ * round-tripping DOCX → PDF (which would require a server-side Word/LibreOffice).
  */
 export async function POST(
   req: NextRequest,
@@ -33,10 +32,20 @@ export async function POST(
   }
 
   try {
-    const merged = await buildMergedResume({ userId: user.id, applicationId: id, pack });
-    const buffer = await renderResumePdf(merged.resume);
+    const artifact = await buildExportArtifact({
+      userId: user.id,
+      applicationId: id,
+      pack,
+      preferEdit: false, // PDF always wants a parsed structure
+    });
 
-    const filename = `${merged.filenameStem || "resume"}.pdf`;
+    if (artifact.kind !== "rebuild") {
+      // Defensive: pipeline should always return rebuild when preferEdit=false
+      throw new ExportError("Internal: PDF export requires a parsed structure.", 500);
+    }
+
+    const buffer = await renderResumePdf(artifact.merged.resume);
+    const filename = `${artifact.filenameStem || "resume"}.pdf`;
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,
@@ -45,9 +54,11 @@ export async function POST(
         "Content-Disposition": `attachment; filename="${filename}"`,
         "Content-Length": String(buffer.byteLength),
         "Cache-Control": "no-store",
-        "X-Resume-Parse-Confidence": merged.resume.meta.parseConfidence,
-        "X-Resume-Bullets-Applied": String(merged.appliedBullets.length),
-        "X-Resume-Bullets-Unmatched": String(merged.unmatchedBullets.length),
+        "X-Resume-Master-Format": artifact.masterFormat,
+        "X-Resume-Render-Mode": "rebuild",
+        "X-Resume-Parse-Confidence": artifact.merged.resume.meta.parseConfidence,
+        "X-Resume-Bullets-Applied": String(artifact.merged.appliedBullets.length),
+        "X-Resume-Bullets-Unmatched": String(artifact.merged.unmatchedBullets.length),
       },
     });
   } catch (err) {
