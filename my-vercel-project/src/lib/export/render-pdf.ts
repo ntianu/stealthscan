@@ -1,8 +1,9 @@
 /**
- * Render a MergedResume to a PDF buffer.
+ * PDF rendering utilities backed by Playwright.
  *
- * Approach: build an HTML+CSS document with the resume content, then
- * use Playwright (already a dep for scraping) to render it to PDF.
+ * Two entry points:
+ *   - htmlToPdf(html)        — generic HTML → PDF buffer
+ *   - renderResumePdf(resume) — convenience wrapper for MergedResume
  *
  * Deployment note: Playwright on Vercel serverless requires
  * `@sparticuz/chromium` or a similar headless-chrome binary. On standard
@@ -16,11 +17,20 @@
 import type { MergedResume } from "./types";
 import { renderResumeHtml } from "./render-html";
 
-/** Generate a PDF buffer from a merged resume. */
-export async function renderResumePdf(resume: MergedResume): Promise<Buffer> {
-  const html = renderResumeHtml(resume);
+export interface HtmlToPdfOptions {
+  /** Page format (default: Letter). */
+  format?: "Letter" | "A4";
+  /** Page margins. CSS-style strings like "0.5in" or "20mm". */
+  margin?: { top?: string; right?: string; bottom?: string; left?: string };
+  /** Whether to render print backgrounds. Default: true (preserves CSS bg colors). */
+  printBackground?: boolean;
+}
 
-  // Dynamic import so build doesn't fail in environments without chromium binaries.
+/** Generic HTML → PDF helper. Used by both resume and cover letter renderers. */
+export async function htmlToPdf(
+  html: string,
+  opts: HtmlToPdfOptions = {}
+): Promise<Buffer> {
   let chromium;
   try {
     const mod = await import("playwright");
@@ -38,12 +48,23 @@ export async function renderResumePdf(resume: MergedResume): Promise<Buffer> {
     const page = await context.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });
     const pdfBuffer = await page.pdf({
-      format: "Letter",
-      margin: { top: "0.5in", right: "0.6in", bottom: "0.5in", left: "0.6in" },
-      printBackground: true,
+      format: opts.format ?? "Letter",
+      margin: {
+        top: opts.margin?.top ?? "0.5in",
+        right: opts.margin?.right ?? "0.6in",
+        bottom: opts.margin?.bottom ?? "0.5in",
+        left: opts.margin?.left ?? "0.6in",
+      },
+      printBackground: opts.printBackground ?? true,
     });
     return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();
   }
+}
+
+/** Generate a PDF buffer from a merged resume. */
+export async function renderResumePdf(resume: MergedResume): Promise<Buffer> {
+  const html = renderResumeHtml(resume);
+  return htmlToPdf(html);
 }

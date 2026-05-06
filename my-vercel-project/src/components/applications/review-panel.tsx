@@ -496,6 +496,9 @@ export function ReviewPanel({
   const fitPct = Math.round(fitScore * 100);
   const fitColor = fitPct >= 70 ? "text-emerald-400" : fitPct >= 50 ? "text-amber-400" : "text-red-400";
   const editTrackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coverLetterSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [coverLetterSaveState, setCoverLetterSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [coverLetterDownloading, setCoverLetterDownloading] = useState<"docx" | "pdf" | null>(null);
 
   // Fire-and-forget: record that the user opened this review panel
   useEffect(() => {
@@ -508,6 +511,61 @@ export function ReviewPanel({
       fetch(`/api/applications/${applicationId}/track-edit`, { method: "POST" }).catch(() => {});
     }, 2000);
   }, [applicationId]);
+
+  // Persist cover letter edits to the DB on a 1.5s debounce.
+  // Closes the gap called out in PRD §5: "Cover letter editing is client-side only".
+  const saveCoverLetter = useCallback((text: string) => {
+    if (coverLetterSaveTimer.current) clearTimeout(coverLetterSaveTimer.current);
+    setCoverLetterSaveState("saving");
+    coverLetterSaveTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/applications/${applicationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ coverLetter: text || null }),
+        });
+        if (!res.ok) {
+          setCoverLetterSaveState("error");
+        } else {
+          setCoverLetterSaveState("saved");
+          setTimeout(() => setCoverLetterSaveState("idle"), 1500);
+        }
+      } catch {
+        setCoverLetterSaveState("error");
+      }
+    }, 1500);
+  }, [applicationId]);
+
+  const downloadCoverLetter = useCallback(async (format: "docx" | "pdf") => {
+    setCoverLetterDownloading(format);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}/export/cover-letter/${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: coverLetter || undefined }),
+      });
+      if (!res.ok) {
+        const msg = await res.json().catch(() => ({ error: "Export failed" }));
+        toast.error((msg as { error?: string }).error ?? "Export failed");
+        return;
+      }
+      const filename = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1]
+        ?? `cover-letter.${format}`;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(`Download failed: ${String(err)}`);
+    } finally {
+      setCoverLetterDownloading(null);
+    }
+  }, [applicationId, coverLetter]);
 
   const goNext = useCallback(() => {
     if (nextId) router.push(`/queue/${nextId}`);
@@ -818,7 +876,24 @@ export function ReviewPanel({
                       </a>
                     )}
                   </div>
-                  {coverLetter && <CopyButton text={coverLetter} />}
+                  <div className="flex items-center gap-2">
+                    {coverLetterSaveState === "saving" && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+                      </span>
+                    )}
+                    {coverLetterSaveState === "saved" && (
+                      <span className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Saved
+                      </span>
+                    )}
+                    {coverLetterSaveState === "error" && (
+                      <span className="text-[10px] text-red-400 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Save failed
+                      </span>
+                    )}
+                    {coverLetter && <CopyButton text={coverLetter} />}
+                  </div>
                 </div>
                 {isActionable ? (
                   generating && !coverLetter ? (
@@ -828,7 +903,12 @@ export function ReviewPanel({
                   ) : (
                     <Textarea
                       value={coverLetter}
-                      onChange={e => { setCoverLetter(e.target.value); trackEdit(); }}
+                      onChange={e => {
+                        const next = e.target.value;
+                        setCoverLetter(next);
+                        trackEdit();
+                        saveCoverLetter(next);
+                      }}
                       rows={12}
                       placeholder="No cover letter yet — click Generate."
                       className="text-sm leading-relaxed font-sans"
@@ -838,6 +918,29 @@ export function ReviewPanel({
                   <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">
                     {coverLetter || "No cover letter."}
                   </pre>
+                )}
+                {coverLetter && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mr-1">Download</span>
+                    <Button
+                      size="sm" variant="outline"
+                      className="text-xs h-7 gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                      onClick={() => downloadCoverLetter("docx")}
+                      disabled={!!coverLetterDownloading}
+                    >
+                      {coverLetterDownloading === "docx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                      {coverLetterDownloading === "docx" ? "Building…" : ".docx"}
+                    </Button>
+                    <Button
+                      size="sm" variant="outline"
+                      className="text-xs h-7 gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                      onClick={() => downloadCoverLetter("pdf")}
+                      disabled={!!coverLetterDownloading}
+                    >
+                      {coverLetterDownloading === "pdf" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileType className="h-3.5 w-3.5" />}
+                      {coverLetterDownloading === "pdf" ? "Building…" : ".pdf"}
+                    </Button>
+                  </div>
                 )}
                 {verifierReport?.passed && (
                   <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400/70">
