@@ -1,4 +1,4 @@
-# Handoff — Resume + Cover Letter Export Pipeline
+# Handoff — Resume + Cover Letter Export Pipeline + Batch URL Importer
 
 **Branch:** `claude/elastic-wescoff`
 **Author:** Cowork session (working alongside Claude Code on this worktree)
@@ -11,6 +11,9 @@ cover letter text into downloadable DOCX and PDF files. Closes the
 is client-side only" bug from PRD §5, and adds DOCX surgical edits +
 PDF rendering throughout.
 
+Also includes a batch URL importer (Task #4) allowing users to paste multiple
+job posting URLs and walk away while N PREPARED applications are created.
+
 ## Phasing
 
 | Phase | Scope | Status |
@@ -18,6 +21,7 @@ PDF rendering throughout.
 | **A** | PDF master → clean DOCX template + PDF | ✅ |
 | **B** | DOCX master support + surgical edits | ✅ |
 | **C** | Cover letter export + persistence + polish | ✅ |
+| **D** | Batch URL importer | ✅ |
 
 ## Combined file inventory
 
@@ -46,6 +50,11 @@ PDF rendering throughout.
 | `cover-letter/docx/route.ts` | C | Cover letter DOCX |
 | `cover-letter/pdf/route.ts` | C | Cover letter PDF |
 
+### `src/app/api/jobs/manual/batch/`
+| Path | Phase | Purpose |
+|------|-------|---------|
+| `route.ts` | D | POST `{ urls: string[] }` — batch ingest up to 20 URLs (3 concurrent, 10s timeout each). Deduplicates within batch and against existing jobs/applications. Runs full fit scoring + resume selection per job (reuses `scoreJob` + `selectBestResume` loaded once). Returns `{ results[], counts: { added, exists, failed } }`. vercel.json: maxDuration 60s. |
+
 ### Modified app files
 | Path | Changes |
 |------|---------|
@@ -53,6 +62,8 @@ PDF rendering throughout.
 | `src/components/applications/review-panel.tsx` | A: resume download buttons. C: cover letter persistence (debounced PATCH), save-state indicator, cover letter download buttons. |
 | `src/lib/uploadthing.ts` | B: accept DOCX MIME type alongside PDF |
 | `src/components/resumes/resume-uploader.tsx` | B: accept `.docx`, update copy |
+| `src/components/discover/add-job-dialog.tsx` | D: added "Paste URLs" tab (Tabs UI). Textarea with live URL count, batch submit, per-URL results summary (added / already in queue / failed). Single URL tab behaviour unchanged. |
+| `vercel.json` | D: added `maxDuration: 60` for batch route |
 
 ### Smoke tests
 | Path | Phase | Purpose |
@@ -167,6 +178,18 @@ implemented. Each is a small follow-up if/when wanted:
 - Cover letter sender contact uses `User.email` and `UserProfile.linkedinUrl`;
   phone and location aren't currently on the profile schema. Add them to
   `UserProfile` later if richer letterheads are wanted.
+
+## Phase D — Batch importer notes
+
+- Scoring context (userProfile + searchProfiles + resumes) is loaded **once** per
+  batch request and reused across all URLs — same quality as the single-job
+  `prepare` route, not the 1.0 placeholder from the single-URL manual route.
+- Concurrency: 3 in-flight fetches at a time. Timeout: 10s per URL.
+- Cap: 20 URLs per request (UI shows "first 20 will be imported" when > 20 pasted).
+- The `Add Job` button on the Discover page now opens a two-tab dialog. Existing
+  Single URL tab is pixel-identical to before; Paste URLs is the new tab.
+- `router.refresh()` is called after a batch that added ≥ 1 job, so the queue
+  count updates without a hard reload.
 
 ## Manual smoke (full system)
 
