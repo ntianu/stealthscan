@@ -22,6 +22,7 @@ job posting URLs and walk away while N PREPARED applications are created.
 | **B** | DOCX master support + surgical edits | ✅ |
 | **C** | Cover letter export + persistence + polish | ✅ |
 | **D** | Batch URL importer | ✅ |
+| **E** | Kanban pipeline view | ✅ |
 
 ## Combined file inventory
 
@@ -178,6 +179,23 @@ implemented. Each is a small follow-up if/when wanted:
 - Cover letter sender contact uses `User.email` and `UserProfile.linkedinUrl`;
   phone and location aren't currently on the profile schema. Add them to
   `UserProfile` later if richer letterheads are wanted.
+
+## Phase E — Kanban pipeline view
+
+**New route:** `/pipeline` (server page + client board component)
+
+**Files:**
+- `src/app/(dashboard)/pipeline/page.tsx` — server component; fetches all of the user's applications (select: id, status, fitScore, confidenceBand, notes, updatedAt, job.{title,company,location}); serializes updatedAt to ISO string; renders `<KanbanBoard>`.
+- `src/components/pipeline/kanban-board.tsx` — `"use client"` component; all interactive logic. Exports `KanbanBoard` + `PipelineApplication` type.
+- `src/components/layout/sidebar.tsx` — added `Pipeline` nav item (Kanban icon) between Queue and Discover.
+
+**Board behaviour:**
+- 6 columns: PREPARED → APPROVED → SUBMITTED → RESPONDED → INTERVIEWING → OFFER
+- HTML5 native drag-and-drop (no external lib). Cards are `draggable`. Columns accept drops via `onDragOver`/`onDrop`. Status updated via `PATCH /api/applications/[id]` with optimistic rollback on failure.
+- REJECTED applications shown in a collapsible accordion at the bottom (hidden by default). Not a drag target — rejection stays in the Review Panel.
+- Filter bar: text search (role / company, client-side) + fit score buttons (All / 50%+ / 70%+). Stats: "N applications · M rejected".
+- Each card: company + location, job title, fit score (colour-coded), notes preview (1 line), time-since-last-update. Click → `/queue/[id]`.
+- Height: board fills `calc(100vh - 3rem)` (full viewport minus topbar). Columns scroll independently. Board scrolls horizontally if viewport is narrow.
 
 ## Phase D — Batch importer notes
 

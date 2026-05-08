@@ -9,11 +9,13 @@ import {
   ClipboardList,
   Brain,
   Settings,
+  Kanban,
 } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard",      href: "/dashboard",      icon: LayoutDashboard },
   { label: "Queue",          href: "/queue",           icon: ClipboardList },
+  { label: "Pipeline",       href: "/pipeline",        icon: Kanban },
   { label: "Discover",       href: "/discover",        icon: Search },
   { label: "Career Context", href: "/career-context",  icon: Brain },
   { label: "Settings",       href: "/settings",        icon: Settings },
