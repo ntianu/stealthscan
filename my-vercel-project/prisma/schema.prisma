@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // pooled — used by the app at runtime
+  directUrl = env("DIRECT_DATABASE_URL") // direct — used by prisma migrate deploy
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Source {
+  LINKEDIN
+  INDEED
+  WTTJ
+  GREENHOUSE
+  LEVER
+  REMOTIVE
+  WEWORKREMOTELY
+  HACKERNEWS
+  JOBICY
+  WORKINGNOMADS
+  RSS
+  BUILTIN
+  MANUAL
+}
+
+enum RemoteType {
+  REMOTE
+  HYBRID
+  ONSITE
+}
+
+enum Seniority {
+  INTERN
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  EXECUTIVE
+}
+
+enum JobType {
+  FULLTIME
+  PARTTIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+}
+
+enum JobStatus {
+  ACTIVE
+  EXPIRED
+  GHOST
+}
+
+enum ApplicationStatus {
+  PREPARED
+  APPROVED
+  SUBMITTED
+  REJECTED
+  RESPONDED
+  INTERVIEWING
+  OFFER
+}
+
+enum ConfidenceBand {
+  HIGH
+  MEDIUM
+  EXPLORATORY
+}
+
+enum ContextDocumentType {
+  career_strategy
+  positioning
+  experience_library
+  decision_rules
+  writing_voice
+  target_companies
+  decision_log
+}
+
+enum BulletCategory {
+  achievement
+  leadership
+  technical
+  cross_functional
+  growth
+  stakeholder
+  data_driven
+  operational
+}
+
+enum VariantSource {
+  AI_GENERATED
+  USER_EDITED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id               String            @id @default(cuid())
+  clerkId          String            @unique
+  email            String            @unique
+  name             String?
+  userProfile      UserProfile?
+  searchProfiles   SearchProfile[]
+  resumes          Resume[]
+  bullets          Bullet[]
+  applications     Application[]
+  contextDocuments ContextDocument[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  yearsExperience Int?
+  currentTitle    String?
+  targetRoles     String[]
+  skills          String[]
+  industries      String[]
+  workAuth        String   @default("citizen")
+  linkedinUrl     String?
+  linkedinAbout   String?  @db.Text
+  githubUrl       String?
+  portfolioUrl    String?
+  digestEnabled   Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model SearchProfile {
+  id               String       @id @default(cuid())
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  active           Boolean      @default(true)
+  dailyLimit       Int          @default(20)
+  titleIncludes    String[]
+  titleExcludes    String[]
+  locations        String[]
+  rssFeeds         String[]
+  remoteTypes      RemoteType[]
+  minSalary        Int?
+  maxSalary        Int?
+  seniority        Seniority[]
+  jobTypes         JobType[]
+  industries       String[]
+  companyBlacklist String[]
+  companyWhitelist String[]
+  sources             Source[]
+  linkedinSearchUrls  String[]
+  autoApply           Boolean      @default(false)
+  autoApplyThreshold  Float        @default(0.75)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model Job {
+  id           String        @id @default(cuid())
+  source       Source
+  externalId   String
+  dedupKey     String        @unique
+  title        String
+  company      String
+  location     String?
+  remoteType   RemoteType?
+  salaryMin    Int?
+  salaryMax    Int?
+  description  String        @db.Text
+  requirements String[]
+  applyUrl     String
+  postedAt     DateTime?
+  fetchedAt    DateTime      @default(now())
+  status       JobStatus     @default(ACTIVE)
+  applications Application[]
+
+  @@index([source, status])
+  @@index([fetchedAt])
+}
+
+model Resume {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  fileUrl      String
+  fileKey      String
+  roleTags     String[]
+  domains      String[]
+  seniority    Seniority
+  isDefault    Boolean       @default(false)
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  applications Application[]
+}
+
+model Bullet {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content        String          @db.Text
+  competencyTags String[]
+  industryTags   String[]
+  roleTags       String[]
+  seniority      Seniority
+  proofStrength  Int             @default(3)
+  // v2 — bullet library enrichment
+  category       BulletCategory?
+  context        String?         @db.Text
+  useCount       Int             @default(0)
+  winRate        Float?
+  lastUsedAt     DateTime?
+  variants       BulletVariant[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model BulletVariant {
+  id            String        @id @default(cuid())
+  bulletId      String
+  bullet        Bullet        @relation(fields: [bulletId], references: [id], onDelete: Cascade)
+  roleFamily    String
+  content       String        @db.Text
+  source        VariantSource @default(AI_GENERATED)
+  approved      Boolean       @default(false)
+  applicationId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([bulletId, roleFamily])
+  @@index([bulletId])
+}
+
+model Application {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId          String
+  job            Job               @relation(fields: [jobId], references: [id])
+  resumeId       String?
+  resume         Resume?           @relation(fields: [resumeId], references: [id])
+  status         ApplicationStatus @default(PREPARED)
+  fitScore       Float             @default(0)
+  fitExplanation String            @db.Text @default("")
+  coverLetter    String?           @db.Text
+  customAnswers  Json?
+  verifierReport Json?
+  jobAnalysis    Json?
+  submittedAt    DateTime?
+  responseAt     DateTime?
+  responseType   String?
+  notes          String?           @db.Text
+  interviewDate  DateTime?
+  proof          ApplicationProof?
+  // v2 — confidence + rationale
+  confidenceBand    ConfidenceBand?
+  rationale         String?         @db.Text
+  risks             String?         @db.Text
+  // v2 — decision memory
+  decisionReason    String?
+  savedForLater     Boolean         @default(false)
+  aiRecommendation  String?
+  // v2 — evaluation instrumentation
+  reviewOpenedAt    DateTime?
+  reviewCompletedAt DateTime?
+  coverLetterEdited Boolean         @default(false)
+  editCount         Int             @default(0)
+  // v2 — expanded scoring dimensions
+  industryScore     Float?
+  companyScore      Float?
+  decisionRuleScore Float?
+  trajectoryScore   Float?
+  // bullet library — which bullets powered this application
+  selectedBulletIds String[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, status])
+  @@index([jobId])
+}
+
+model ContextDocument {
+  id         String              @id @default(cuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       ContextDocumentType
+  title      String
+  content    String              @db.Text
+  compiled   String?             @db.Text
+  compiledAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model ApplicationProof {
+  id              String      @id @default(cuid())
+  applicationId   String      @unique
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  jobSnapshot     Json
+  resumeSnapshot  String
+  coverLetterText String?     @db.Text
+  answersSnapshot Json?
+  verifierReport  Json
+  screenshotUrl   String?
+  createdAt       DateTime    @default(now())
+}

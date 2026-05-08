@@ -1,0 +1,23 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/scan-jobs",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/prepare-apps",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/auto-apply",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/scan/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/scan-jobs/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/prepare-apps/route.ts": { "maxDuration": 300 },
+    "src/app/api/cron/auto-apply/route.ts": { "maxDuration": 300 },
+    "src/app/api/jobs/manual/batch/route.ts": { "maxDuration": 60 }
+  }
+}
