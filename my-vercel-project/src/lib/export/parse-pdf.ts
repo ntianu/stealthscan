@@ -103,7 +103,12 @@ function extractContact(lines: string[]): { contact: ContactBlock; consumedLineC
   // The first non-empty, non-contact-marker line is treated as the name.
   for (let i = 0; i < Math.min(lines.length, 8); i++) {
     const line = lines[i];
-    if (classifyHeading(line)) break;
+    const heading = classifyHeading(line);
+    // Only break on a *recognised* section heading (summary, experience, etc.).
+    // An unrecognised all-caps line (heading.kind === "other") with 2+ words is
+    // likely the candidate's name in all-caps — don't let it terminate the
+    // contact block before we have a chance to detect it.
+    if (heading && (heading.kind !== "other" || line.trim().split(/\s+/).length <= 1)) break;
     consumed = i + 1;
 
     const email = line.match(EMAIL_RE)?.[0];
@@ -197,8 +202,15 @@ function parseExperience(blockLines: string[]): ExperienceItem[] {
     }
 
     // Non-bullet line = potential new role header.
-    // We start a new role when we see a non-bullet line AFTER any bullets, or when no role exists.
-    const looksLikeNewRole = !current || current.bullets.length > 0;
+    // We start a new role when:
+    //   a) there is no current role yet, OR
+    //   b) the current role already has bullets (most common case), OR
+    //   c) the line itself contains a date-range pattern like "2023 — 2025" or
+    //      "Jan 2024 – Present" — this is a strong signal of a new role header
+    //      even when multiple job entries appear back-to-back without bullets.
+    const DATE_RANGE_RE = /\b\d{4}\s*[-–—]\s*(?:\d{4}|[Pp]resent)/;
+    const looksLikeNewRole =
+      !current || current.bullets.length > 0 || DATE_RANGE_RE.test(line);
 
     if (looksLikeNewRole) {
       pushCurrent();
