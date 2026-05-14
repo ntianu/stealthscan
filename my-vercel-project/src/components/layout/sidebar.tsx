@@ -11,6 +11,7 @@ import {
   Settings,
   Kanban,
 } from "lucide-react";
+import { AddJobDialog } from "@/components/discover/add-job-dialog";
 
 const navItems = [
   { label: "Dashboard",      href: "/dashboard",      icon: LayoutDashboard },
@@ -41,8 +42,17 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Add Job CTA */}
+      <div className="px-2 pt-3 pb-1">
+        <AddJobDialog trigger={
+          <button className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+            + Add Job
+          </button>
+        } />
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 space-y-px px-2 py-3">
+      <nav className="flex-1 space-y-px px-2 py-2">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||

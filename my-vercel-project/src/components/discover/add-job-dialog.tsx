@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -155,7 +155,7 @@ function BatchResults({
 // Main component
 // ---------------------------------------------------------------------------
 
-export function AddJobDialog() {
+export function AddJobDialog({ trigger }: { trigger?: React.ReactNode } = {}) {
   const router = useRouter();
 
   // --- single-URL tab state ---
@@ -277,15 +277,19 @@ export function AddJobDialog() {
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5 text-xs"
-        onClick={() => setOpen(true)}
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Add Job
-      </Button>
+      {trigger ? (
+        <span onClick={() => setOpen(true)} className="contents">{trigger}</span>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className="gap-1.5 text-xs"
+          onClick={() => setOpen(true)}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add Job
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
