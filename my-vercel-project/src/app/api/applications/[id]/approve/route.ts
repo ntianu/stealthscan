@@ -78,6 +78,7 @@ export async function POST(
           data: {
             status: "SUBMITTED",
             submittedAt: new Date(),
+            reviewCompletedAt: new Date(),
             coverLetter,
             customAnswers,
           },
@@ -106,6 +107,7 @@ export async function POST(
     where: { id },
     data: {
       status: "APPROVED",
+      reviewCompletedAt: new Date(),
       coverLetter,
       customAnswers,
     },

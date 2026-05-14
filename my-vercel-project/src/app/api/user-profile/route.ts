@@ -20,8 +20,10 @@ const schema = z.object({
   industries: z.array(z.string()).optional(),
   workAuth: z.string().optional(),
   linkedinUrl: urlField,
+  linkedinAbout: z.string().max(3000).nullable().optional(),
   githubUrl: urlField,
   portfolioUrl: urlField,
+  digestEnabled: z.boolean().optional(),
 });
 
 export async function GET() {

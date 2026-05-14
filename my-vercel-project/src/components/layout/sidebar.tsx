@@ -7,20 +7,19 @@ import {
   LayoutDashboard,
   Search,
   ClipboardList,
-  History,
-  FileText,
+  Brain,
   Settings,
-  Target,
+  Kanban,
 } from "lucide-react";
+import { AddJobDialog } from "@/components/discover/add-job-dialog";
 
 const navItems = [
-  { label: "Dashboard",       href: "/dashboard", icon: LayoutDashboard },
-  { label: "Discover",        href: "/discover",  icon: Search },
-  { label: "Queue",           href: "/queue",     icon: ClipboardList },
-  { label: "History",         href: "/history",   icon: History },
-  { label: "Resumes",         href: "/resumes",   icon: FileText },
-  { label: "Search Profiles", href: "/profiles",  icon: Target },
-  { label: "Settings",        href: "/settings",  icon: Settings },
+  { label: "Dashboard",      href: "/dashboard",      icon: LayoutDashboard },
+  { label: "Queue",          href: "/queue",           icon: ClipboardList },
+  { label: "Pipeline",       href: "/pipeline",        icon: Kanban },
+  { label: "Discover",       href: "/discover",        icon: Search },
+  { label: "Career Context", href: "/career-context",  icon: Brain },
+  { label: "Settings",       href: "/settings",        icon: Settings },
 ];
 
 export function Sidebar() {
@@ -43,8 +42,17 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Add Job CTA */}
+      <div className="px-2 pt-3 pb-1">
+        <AddJobDialog trigger={
+          <button className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+            + Add Job
+          </button>
+        } />
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 space-y-px px-2 py-3">
+      <nav className="flex-1 space-y-px px-2 py-2">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -71,7 +79,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="px-4 py-3 border-t border-white/[0.06]">
         <p className="text-[9px] font-medium tracking-widest uppercase text-muted-foreground/50">
-          v1.0 beta
+          v2.0 beta
         </p>
       </div>
     </aside>

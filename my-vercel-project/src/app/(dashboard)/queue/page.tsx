@@ -4,6 +4,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { QueueCard } from "@/components/applications/queue-card";
 import Link from "next/link";
+import type { ConfidenceBand } from "@prisma/client";
 
 export default async function QueuePage() {
   const user = await requireUser();
@@ -11,16 +12,19 @@ export default async function QueuePage() {
   const applications = await db.application.findMany({
     where: { userId: user.id, status: "PREPARED" },
     include: { job: true, resume: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ savedForLater: "asc" }, { createdAt: "desc" }],
   });
+
+  const total = applications.length;
+  const saved = applications.filter((a) => a.savedForLater).length;
 
   return (
     <>
       <Topbar
         title="Review Queue"
         description={
-          applications.length > 0
-            ? `${applications.length} application${applications.length === 1 ? "" : "s"} waiting`
+          total > 0
+            ? `${total} opportunit${total === 1 ? "y" : "ies"} waiting${saved > 0 ? ` · ${saved} saved for later` : ""}`
             : "All caught up"
         }
       />
@@ -36,18 +40,21 @@ export default async function QueuePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {applications.map((app: { id: string; fitScore: number; createdAt: Date; coverLetter: string | null; job: { title: string; company: string; source: string }; resume: { name: string } | null }) => (
+          <div className="space-y-2 max-w-2xl">
+            {applications.map((app) => (
               <QueueCard
                 key={app.id}
                 id={app.id}
                 jobTitle={app.job.title}
                 jobCompany={app.job.company}
+                jobLocation={app.job.location}
                 jobSource={app.job.source}
                 fitScore={app.fitScore}
+                confidenceBand={(app.confidenceBand as ConfidenceBand | null)}
+                rationale={app.rationale}
+                risks={app.risks}
                 createdAt={app.createdAt}
-                resumeName={app.resume?.name ?? null}
-                hasCoverLetter={!!app.coverLetter}
+                savedForLater={app.savedForLater}
               />
             ))}
           </div>

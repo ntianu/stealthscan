@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const WORK_AUTH_OPTIONS = [
   { value: "citizen",   label: "US Citizen / Permanent Resident" },
@@ -51,6 +52,7 @@ interface UserProfileFormProps {
     industries?: string[];
     workAuth?: string;
     linkedinUrl?: string | null;
+    linkedinAbout?: string | null;
     githubUrl?: string | null;
     portfolioUrl?: string | null;
   } | null;
@@ -64,6 +66,7 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
   const [industries, setIndustries]       = useState<string[]>(initial?.industries ?? []);
   const [workAuth, setWorkAuth]           = useState(initial?.workAuth ?? "citizen");
   const [linkedinUrl, setLinkedinUrl]     = useState(initial?.linkedinUrl ?? "");
+  const [linkedinAbout, setLinkedinAbout] = useState(initial?.linkedinAbout ?? "");
   const [githubUrl, setGithubUrl]         = useState(initial?.githubUrl ?? "");
   const [portfolioUrl, setPortfolioUrl]   = useState(initial?.portfolioUrl ?? "");
   const [saving, setSaving]               = useState(false);
@@ -81,8 +84,9 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
           skills,
           industries,
           workAuth,
-          linkedinUrl:  linkedinUrl || null,
-          githubUrl:    githubUrl || null,
+          linkedinUrl:    linkedinUrl || null,
+          linkedinAbout:  linkedinAbout || null,
+          githubUrl:      githubUrl || null,
           portfolioUrl: portfolioUrl || null,
         }),
       });
@@ -231,6 +235,19 @@ export function UserProfileForm({ initial }: UserProfileFormProps) {
               placeholder="https://linkedin.com/in/yourname"
               className="mt-1.5 h-9 text-sm"
             />
+          </div>
+          <div>
+            <Label className="text-xs font-medium">LinkedIn About / bio</Label>
+            <Textarea
+              value={linkedinAbout}
+              onChange={(e) => setLinkedinAbout(e.target.value)}
+              placeholder="Paste your LinkedIn 'About' section here. This gives the AI richer context when writing cover letters and rewriting resume bullets."
+              className="mt-1.5 text-sm min-h-[100px] resize-y"
+              maxLength={3000}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {linkedinAbout.length}/3000 — paste from your LinkedIn profile to improve match quality.
+            </p>
           </div>
           <div>
             <Label className="text-xs font-medium">GitHub</Label>

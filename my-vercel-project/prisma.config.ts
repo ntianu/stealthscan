@@ -13,6 +13,9 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
+    // Use direct (non-pooled) connection for CLI commands (migrate, introspect, etc.)
+    // so Prisma advisory locks work correctly on Neon.
+    // Falls back to DATABASE_URL in local dev where DIRECT_DATABASE_URL isn't set.
+    url: env("DIRECT_DATABASE_URL") ?? env("DATABASE_URL"),
   },
 });

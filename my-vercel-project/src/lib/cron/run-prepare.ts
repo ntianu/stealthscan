@@ -5,6 +5,7 @@ import { selectBestResume, selectRelevantBullets } from "@/lib/ai/resume-select"
 import { generateCoverLetter } from "@/lib/ai/cover-letter";
 import { answerCommonQuestions } from "@/lib/ai/answer-gen";
 import { verifyGeneratedText } from "@/lib/ai/verifier";
+import { sendDailyDigest } from "@/lib/email";
 
 export interface PrepareResult {
   message: string;
@@ -32,6 +33,9 @@ export async function runPrepare(): Promise<PrepareResult> {
   for (const user of users) {
     if (!user.userProfile || user.searchProfiles.length === 0) continue;
     if (user.resumes.length === 0) continue;
+
+    let userPrepared = 0;
+    const topJobs: { title: string; company: string; fitScore: number }[] = [];
 
     for (const profile of user.searchProfiles) {
       const existingJobIds = (
@@ -84,6 +88,7 @@ export async function runPrepare(): Promise<PrepareResult> {
                 yearsExperience: user.userProfile.yearsExperience,
                 skills: user.userProfile.skills,
                 industries: user.userProfile.industries,
+                linkedinAbout: user.userProfile.linkedinAbout,
               },
               resume: {
                 name: selectedResume.name,
@@ -120,9 +125,31 @@ export async function runPrepare(): Promise<PrepareResult> {
           });
 
           totalPrepared++;
+          userPrepared++;
+          topJobs.push({ title: job.title, company: job.company, fitScore: score });
         } catch (err) {
           console.error(`Failed to prepare application for job ${job.id}:`, err);
         }
+      }
+    }
+
+    // Send digest email for this user if anything was prepared and they haven't opted out
+    if (userPrepared > 0 && user.userProfile.digestEnabled !== false) {
+      try {
+        const totalInQueue = await db.application.count({
+          where: { userId: user.id, status: "PREPARED" },
+        });
+        // Sort by fit score, take top 3
+        const sortedTop = topJobs.sort((a, b) => b.fitScore - a.fitScore).slice(0, 3);
+        await sendDailyDigest({
+          to: user.email,
+          name: user.name,
+          newlyPrepared: userPrepared,
+          totalInQueue,
+          topJobs: sortedTop,
+        });
+      } catch (err) {
+        console.error(`Failed to send digest email to ${user.email}:`, err);
       }
     }
   }

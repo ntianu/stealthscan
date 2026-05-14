@@ -6,6 +6,7 @@ import { UserProfileForm } from "@/components/settings/user-profile-form";
 import { LocationPrefsForm } from "@/components/settings/location-prefs-form";
 import { RssFeedsForm } from "@/components/settings/rss-feeds-form";
 import { LinkedInSearchUrlsForm } from "@/components/settings/linkedin-search-urls-form";
+import { NotificationsForm } from "@/components/settings/notifications-form";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -22,6 +23,15 @@ export default async function SettingsPage() {
     <>
       <Topbar title="Settings" description="Account preferences and professional profile" />
       <div className="p-6 space-y-6 max-w-3xl">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Notifications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NotificationsForm initialDigestEnabled={userProfile?.digestEnabled ?? true} />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Account</CardTitle>
@@ -103,6 +113,7 @@ export default async function SettingsPage() {
                     industries:      userProfile.industries,
                     workAuth:        userProfile.workAuth,
                     linkedinUrl:     userProfile.linkedinUrl,
+                    linkedinAbout:   userProfile.linkedinAbout,
                     githubUrl:       userProfile.githubUrl,
                     portfolioUrl:    userProfile.portfolioUrl,
                   }

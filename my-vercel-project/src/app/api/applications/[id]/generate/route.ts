@@ -6,6 +6,8 @@ import { answerCommonQuestions } from "@/lib/ai/answer-gen";
 import { verifyGeneratedText } from "@/lib/ai/verifier";
 import { selectBestResume, selectRelevantBullets } from "@/lib/ai/resume-select";
 import { scoreJob } from "@/lib/matching/scorer";
+import { analyzeJob, type JobIntel } from "@/lib/ai/job-intel";
+import { assembleContext, jobIntelSlices, coverLetterSlices } from "@/lib/context/assemble";
 
 /**
  * POST /api/applications/[id]/generate
@@ -41,11 +43,13 @@ export async function POST(
   }
 
 
-  // Load user profile + resumes + bullets
-  const [userProfile, resumes, bullets] = await Promise.all([
+  // Load user profile + resumes + bullets + career context in parallel
+  const [userProfile, resumes, bullets, intelContext, coverContext] = await Promise.all([
     db.userProfile.findUnique({ where: { userId: user.id } }),
     db.resume.findMany({ where: { userId: user.id } }),
     db.bullet.findMany({ where: { userId: user.id } }),
+    assembleContext(user.id, jobIntelSlices()),
+    assembleContext(user.id, coverLetterSlices()),
   ]);
 
   if (!userProfile) {
@@ -69,7 +73,37 @@ export async function POST(
     5
   );
 
-  // Generate cover letter
+  // Run job analysis first — this informs both bullet selection and cover letter
+  let jobIntel: JobIntel | null = null;
+  try {
+    jobIntel = await analyzeJob({
+      job: {
+        title: job.title,
+        company: job.company,
+        description: job.description,
+        requirements: job.requirements,
+      },
+      userProfile: {
+        currentTitle: userProfile.currentTitle,
+        yearsExperience: userProfile.yearsExperience,
+        skills: userProfile.skills,
+        industries: userProfile.industries,
+        linkedinAbout: userProfile.linkedinAbout,
+      },
+      bullets: selectedBullets.map((b) => ({
+        id: b.id,
+        content: b.content,
+        competencyTags: b.competencyTags,
+        roleTags: b.roleTags,
+        proofStrength: b.proofStrength,
+      })),
+      careerContext: intelContext || undefined,
+    });
+  } catch (err) {
+    console.warn("[generate] job analysis failed (non-fatal):", err);
+  }
+
+  // Generate cover letter (intel-informed if available)
   let coverLetterText = "";
   let tokensUsed = 0;
   try {
@@ -85,6 +119,7 @@ export async function POST(
         yearsExperience: userProfile.yearsExperience,
         skills: userProfile.skills,
         industries: userProfile.industries,
+        linkedinAbout: userProfile.linkedinAbout,
       },
       resume: bestResume
         ? {
@@ -98,6 +133,8 @@ export async function POST(
         content: b.content,
         competencyTags: b.competencyTags,
       })),
+      jobIntel: jobIntel ?? undefined,
+      careerContext: coverContext || undefined,
     });
     coverLetterText = result.text;
     tokensUsed = result.tokensUsed;
@@ -140,17 +177,24 @@ export async function POST(
   const fitResult = scoreJob(job, userProfile, preferredSeniorities);
 
   // Persist everything back to the application
-  // JSON.parse(JSON.stringify(...)) yields a plain object compatible with Prisma's Json type
   const updated = await db.application.update({
     where: { id },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: {
       coverLetter: coverLetterText,
       customAnswers: JSON.parse(JSON.stringify(customAnswers)),
       verifierReport: JSON.parse(JSON.stringify(verifierReport)),
+      jobAnalysis: jobIntel ? JSON.parse(JSON.stringify(jobIntel)) : undefined,
       resumeId: bestResume?.id ?? application.resumeId,
       fitScore: fitResult.score,
       fitExplanation: fitResult.explanation,
+      // v2 — persist intelligence fields when available
+      ...(jobIntel && {
+        confidenceBand: jobIntel.confidenceBand,
+        rationale: jobIntel.rationale,
+        risks: jobIntel.risks ?? null,
+      }),
+      // bullet library — record which bullets powered this application
+      selectedBulletIds: selectedBullets.map((b) => b.id),
     },
   });
 
@@ -158,9 +202,13 @@ export async function POST(
     coverLetter: updated.coverLetter,
     customAnswers: updated.customAnswers,
     verifierReport: updated.verifierReport,
+    jobAnalysis: updated.jobAnalysis,
     resumeId: updated.resumeId,
     fitScore: updated.fitScore,
     fitExplanation: updated.fitExplanation,
+    confidenceBand: updated.confidenceBand,
+    rationale: updated.rationale,
+    risks: updated.risks,
     tokensUsed,
   });
 }

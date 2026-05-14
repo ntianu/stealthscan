@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+/**
+ * When an application reaches INTERVIEWING or OFFER, recalculate win rates for
+ * all bullets that were used in it. Non-fatal — failures are swallowed.
+ */
+async function propagateBulletWinRate(bulletIds: string[]): Promise<void> {
+  await Promise.all(
+    bulletIds.map(async (bulletId) => {
+      const [total, wins] = await Promise.all([
+        db.application.count({
+          where: { selectedBulletIds: { has: bulletId } },
+        }),
+        db.application.count({
+          where: {
+            selectedBulletIds: { has: bulletId },
+            status: { in: ["INTERVIEWING", "OFFER"] },
+          },
+        }),
+      ]);
+      if (total > 0) {
+        await db.bullet.update({
+          where: { id: bulletId },
+          data: { winRate: wins / total },
+        });
+      }
+    })
+  );
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -40,6 +68,7 @@ export async function PATCH(
   const { coverLetter, customAnswers, notes, status, interviewDate } = body;
 
   const ALLOWED_STATUSES = ["PREPARED", "APPROVED", "SUBMITTED", "REJECTED", "RESPONDED", "INTERVIEWING", "OFFER"];
+  const WIN_STATUSES = ["INTERVIEWING", "OFFER"];
 
   const updated = await db.application.update({
     where: { id },
@@ -53,6 +82,14 @@ export async function PATCH(
       ...(status === "RESPONDED" && application.status !== "RESPONDED" ? { responseAt: new Date() } : {}),
     },
   });
+
+  // Propagate bullet win rates when application reaches a positive outcome
+  const isWin = status && WIN_STATUSES.includes(status) && !WIN_STATUSES.includes(application.status);
+  if (isWin && application.selectedBulletIds.length > 0) {
+    propagateBulletWinRate(application.selectedBulletIds).catch((err) => {
+      console.warn("[patch] bullet win-rate propagation failed:", err);
+    });
+  }
 
   return NextResponse.json(updated);
 }
